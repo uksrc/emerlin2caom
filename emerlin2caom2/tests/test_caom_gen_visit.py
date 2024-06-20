@@ -66,32 +66,60 @@
 # ***********************************************************************
 #
 
+from mock import patch
+
+from emerlin2caom2 import file2caom2_augmentation, main_app
+from caom2.diff import get_differences
+from caom2pipe import astro_composable as ac
 from caom2pipe import manage_composable as mc
-from blank2caom2 import BlankName
+from caom2pipe import reader_composable as rdc
+
+import glob
+import os
 
 
-def test_is_valid():
-    assert BlankName('anything').is_valid()
-    
+def pytest_generate_tests(metafunc):
+    obs_id_list = glob.glob(f'{metafunc.config.invocation_dir}/data/*.fits.header')
+    metafunc.parametrize('test_name', obs_id_list)
 
-def test_storage_name(test_config):
-    test_obs_id = 'TEST_OBS_ID'
-    test_f_name = f'{test_obs_id}.fits'
-    test_uri = f'{test_config.scheme}:{test_config.collection}/{test_f_name}'
-   for index, entry in enumerate(
-        [
-            test_f_name, 
-            test_uri, 
-            f'https://localhost:8020/{test_f_name}', 
-            f'vos:goliaths/test/{test_f_name}',
-            f'/tmp/{test_f_name}',
-        ]   
-    ):
-        test_subject = BlankName(entry)
-        assert test_subject.file_id == test_f_name.replace('.fits', '').replace('.header', ''), f'wrong file id {index}'
-        assert test_subject.file_uri == test_uri, f'wrong uri {index}'
-        assert test_subject.obs_id == test_obs_id, f'wrong obs id {index}'
-        assert test_subject.product_id == test_obs_id, f'wrong product id {index}'
-        assert test_subject.source_names == [entry], f'wrong source names {index}'
-        assert test_subject.destination_uris == [test_uri], f'wrong uris {index} {test_subject}'
 
+@patch('caom2utils.data_util.get_local_headers_from_fits')
+def test_main_app(header_mock, test_name, test_config):
+    header_mock.side_effect = ac.make_headers_from_file
+    storage_name = main_app.BlankName(entry=test_name)
+    metadata_reader = rdc.FileMetadataReader()
+    metadata_reader.set(storage_name)
+    file_type = 'application/fits'
+    metadata_reader.file_info[storage_name.destination_uris[0]].file_type = file_type
+    kwargs = {
+        'storage_name': storage_name,
+        'metadata_reader': metadata_reader,
+        'config': test_config,
+    }
+    expected_fqn = test_name.replace('.fits.header', '.expected.xml')
+    in_fqn = expected_fqn.replace('.expected', '.in')
+    actual_fqn = expected_fqn.replace('expected', 'actual')
+    if os.path.exists(actual_fqn):
+        os.unlink(actual_fqn)
+    observation = None
+    if os.path.exists(in_fqn):
+        observation = mc.read_obs_from_file(in_fqn)
+    observation = file2caom2_augmentation.visit(observation, **kwargs)
+    if observation is None:
+        assert False, f'Did not create observation for {test_name}'
+    else:
+        if os.path.exists(expected_fqn):
+            expected = mc.read_obs_from_file(expected_fqn)
+            compare_result = get_differences(expected, observation)
+            if compare_result is not None:
+                mc.write_obs_to_file(observation, actual_fqn)
+                compare_text = '\n'.join([r for r in compare_result])
+                msg = (
+                    f'Differences found in observation {expected.observation_id}\n'
+                    f'{compare_text}'
+                )
+                raise AssertionError(msg)
+        else:
+            mc.write_obs_to_file(observation, actual_fqn)
+            assert False, f'nothing to compare to for {test_name}, missing {expected_fqn}'
+    # assert False  # cause I want to see logging messages

@@ -13,7 +13,7 @@ ARG OPENCADC_REPO=opencadc
 
 RUN pip install git+https://github.com/${OPENCADC_REPO}/caom2pipe@${OPENCADC_BRANCH}#egg=caom2pipe
 
-RUN pip install git+https://github.com/${OPENCADC_REPO}/blank2caom2@${OPENCADC_BRANCH}#egg=blank2caom2
+RUN pip install git+https://github.com/uksrc/emerlin2caom2@${OPENCADC_BRANCH}#egg=emerlin2caom2
 
 FROM python:${CADC_PYTHON_VERSION}-slim
 WORKDIR /usr/src/app

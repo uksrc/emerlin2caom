@@ -66,49 +66,61 @@
 # ***********************************************************************
 #
 
-import os
+"""
+Implements the default entry point functions for the workflow 
+application.
 
-from mock import patch
+'run' executes based on either provided lists of work, or files on disk.
+'run_incremental' executes incrementally, usually based on time-boxed intervals.
+"""
 
-from caom2pipe import manage_composable as mc
-from blank2caom2 import composable
+import logging
+import sys
+import traceback
+
+from caom2pipe.run_composable import run_by_state, run_by_todo
+from emerlin2caom2 import file2caom2_augmentation
 
 
-def test_run_by_state():
-    pass
+META_VISITORS = [file2caom2_augmentation]
+DATA_VISITORS = []
 
 
-@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
-@patch('caom2pipe.execute_composable.OrganizeExecutes.do_one')
-def test_run(run_mock, access_mock, test_config, tmp_path):
-    run_mock.return_value = 0
-    access_mock.return_value = 'https://localhost'
-    test_f_id = 'test_file_id'
-    test_f_name = f'{test_f_id}.fits'
-    orig_cwd = os.getcwd()
+def _run():
+    """
+    Uses a todo file to identify the work to be done.
+
+    :return 0 if successful, -1 if there's any sort of failure. Return status
+        is used by airflow for task instance management and reporting.
+    """
+    return run_by_todo(meta_visitors=META_VISITORS, data_visitors=DATA_VISITORS)
+
+
+def run():
+    """Wraps _run in exception handling, with sys.exit calls."""
     try:
-        os.chdir(tmp_path.as_posix())
-        test_config.change_working_directory(tmp_path.as_posix())
-        test_config.proxy_file_name = 'test_proxy.fqn'
-        test_config.write_to_file(test_config)
+        result = _run()
+        sys.exit(result)
+    except Exception as e:
+        logging.error(e)
+        tb = traceback.format_exc()
+        logging.debug(tb)
+        sys.exit(-1)
 
-        with open(test_config.proxy_fqn, 'w') as f:
-            f.write('test content')
-        with open(test_config.work_fqn, 'w') as f:
-            f.write(test_f_name)
 
-        try:
-            # execution
-            test_result = composable._run()
-        except Exception as e:
-            assert False, e
+def _run_incremental():
+    """Uses a state file with a timestamp to identify the work to be done.
+    """
+    return run_by_state(meta_visitors=META_VISITORS, data_visitors=DATA_VISITORS)
 
-        assert test_result == 0, 'wrong return value'
-        assert run_mock.called, 'should have been called'
-        args, kwargs = run_mock.call_args
-        test_storage = args[0]
-        assert isinstance(test_storage, mc.StorageName), type(test_storage)
-        assert test_storage.file_name == test_f_name, 'wrong file name'
-        assert test_storage.source_names[0] == test_f_name, 'wrong fname on disk'
-    finally:
-        os.chdir(orig_cwd)
+
+def run_incremental():
+    """Wraps _run_incremental in exception handling."""
+    try:
+        _run_incremental()
+        sys.exit(0)
+    except Exception as e:
+        logging.error(e)
+        tb = traceback.format_exc()
+        logging.debug(tb)
+        sys.exit(-1)
