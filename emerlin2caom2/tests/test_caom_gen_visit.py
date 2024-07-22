@@ -68,51 +68,56 @@
 
 from mock import patch
 
-from emerlin2caom2 import file2caom2_augmentation, main_app
+from emerlin2caom2 import file2caom2_augmentation, main_app, manage_composable_ms as mc, astro_composable_ms as ac
 from caom2.diff import get_differences
-from caom2pipe import astro_composable as ac
-from caom2pipe import manage_composable as mc
-from caom2pipe import reader_composable as rdc
+from emerlin2caom2 import astro_composable_ms as ac
+# from caom2pipe import astro_composable as ac
+from emerlin2caom2 import manage_composable_ms as mc
+# from caom2pipe import manage_composable as mc
+from emerlin2caom2 import reader_composable_ms as rdc
+# from caom2pipe import reader_composable as rdc
+#
+# import ms_metadata_reader as ms_mdr
 
 import glob
 import os
 
 
 def pytest_generate_tests(metafunc):
-    obs_id_list = glob.glob(f'{metafunc.config.invocation_dir}/data/*.fits.header')
+    obs_id_list = glob.glob(f'{metafunc.config.invocation_dir}/data/*.fits.header') # probably change for completeness
     metafunc.parametrize('test_name', obs_id_list)
 
 
 @patch('caom2utils.data_util.get_local_headers_from_fits')
 def test_main_app(header_mock, test_name, test_config):
-    header_mock.side_effect = ac.make_headers_from_file
+    header_mock.side_effect = ac.make_headers_from_file # change for measurement sets
     storage_name = main_app.BlankName(entry=test_name)
-    metadata_reader = rdc.FileMetadataReader()
+    metadata_reader = rdc.FileMetadataReader() # changed to produce list of headers from ms files must be class
     metadata_reader.set(storage_name)
-    file_type = 'application/fits'
+    file_type = 'application/measurement_set'
     metadata_reader.file_info[storage_name.destination_uris[0]].file_type = file_type
     kwargs = {
         'storage_name': storage_name,
         'metadata_reader': metadata_reader,
         'config': test_config,
     }
-    expected_fqn = test_name.replace('.fits.header', '.expected.xml')
+    expected_fqn = test_name.replace('.fits.header', '.expected.xml') # replace for measurement sets
     in_fqn = expected_fqn.replace('.expected', '.in')
     actual_fqn = expected_fqn.replace('expected', 'actual')
     if os.path.exists(actual_fqn):
         os.unlink(actual_fqn)
     observation = None
     if os.path.exists(in_fqn):
-        observation = mc.read_obs_from_file(in_fqn)
-    observation = file2caom2_augmentation.visit(observation, **kwargs)
+        observation = mc.read_obs_from_file(in_fqn) # will probably need a new verison to accomodate directories instead of files
+    observation = file2caom2_augmentation.visit(observation, **kwargs) # probably need to change?
     if observation is None:
         assert False, f'Did not create observation for {test_name}'
     else:
         if os.path.exists(expected_fqn):
-            expected = mc.read_obs_from_file(expected_fqn)
+            expected = mc.read_obs_from_file(expected_fqn) # will change with above
             compare_result = get_differences(expected, observation)
             if compare_result is not None:
-                mc.write_obs_to_file(observation, actual_fqn)
+                mc.write_obs_to_file(observation, actual_fqn) # perhaps also change for directories over files
                 compare_text = '\n'.join([r for r in compare_result])
                 msg = (
                     f'Differences found in observation {expected.observation_id}\n'

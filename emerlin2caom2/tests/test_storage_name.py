@@ -66,7 +66,7 @@
 # ***********************************************************************
 #
 
-from caom2pipe import manage_composable as mc
+from emerlin2caom2 import manage_composable_ms as mc
 from emerlin2caom2 import BlankName
 
 
