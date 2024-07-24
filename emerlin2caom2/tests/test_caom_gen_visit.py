@@ -72,8 +72,7 @@ from emerlin2caom2 import file2caom2_augmentation, main_app, manage_composable_m
 from caom2.diff import get_differences
 from emerlin2caom2 import astro_composable_ms as ac
 # from caom2pipe import astro_composable as ac
-from emerlin2caom2 import manage_composable_ms as mc
-# from caom2pipe import manage_composable as mc
+from caom2pipe import manage_composable as mc
 from emerlin2caom2 import reader_composable_ms as rdc
 # from caom2pipe import reader_composable as rdc
 #
@@ -108,7 +107,7 @@ def test_main_app(header_mock, test_name, test_config):
         os.unlink(actual_fqn)
     observation = None
     if os.path.exists(in_fqn):
-        observation = mc.read_obs_from_file(in_fqn) # will probably need a new verison to accomodate directories instead of files
+        observation = mc.read_obs_from_file(in_fqn) # probably fine as is, reads caom observations not fits
     observation = file2caom2_augmentation.visit(observation, **kwargs) # probably need to change?
     if observation is None:
         assert False, f'Did not create observation for {test_name}'
