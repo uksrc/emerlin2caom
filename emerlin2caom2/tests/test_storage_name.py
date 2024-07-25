@@ -72,21 +72,19 @@ from emerlin2caom2 import BlankName
 
 def test_is_valid():
     assert BlankName('anything').is_valid()
-    
+
 
 def test_storage_name(test_config):
     test_obs_id = 'TEST_OBS_ID'
     test_f_name = f'{test_obs_id}.fits'
     test_uri = f'{test_config.scheme}:{test_config.collection}/{test_f_name}'
-   for index, entry in enumerate(
-        [
-            test_f_name, 
-            test_uri, 
-            f'https://localhost:8020/{test_f_name}', 
-            f'vos:goliaths/test/{test_f_name}',
-            f'/tmp/{test_f_name}',
-        ]   
-    ):
+    for index, entry in enumerate(
+        [test_f_name,
+         test_uri,
+         f'https://localhost:8020/{test_f_name}',
+         f'vos:goliaths/test/{test_f_name}',
+         f'/tmp/{test_f_name}',
+        ]):
         test_subject = BlankName(entry)
         assert test_subject.file_id == test_f_name.replace('.fits', '').replace('.header', ''), f'wrong file id {index}'
         assert test_subject.file_uri == test_uri, f'wrong uri {index}'
@@ -94,4 +92,3 @@ def test_storage_name(test_config):
         assert test_subject.product_id == test_obs_id, f'wrong product id {index}'
         assert test_subject.source_names == [entry], f'wrong source names {index}'
         assert test_subject.destination_uris == [test_uri], f'wrong uris {index} {test_subject}'
-
