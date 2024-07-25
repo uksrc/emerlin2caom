@@ -107,7 +107,7 @@ def test_run(run_mock, access_mock, test_config, tmp_path):
         assert run_mock.called, 'should have been called'
         args, kwargs = run_mock.call_args
         test_storage = args[0]
-        assert isinstance(test_storage, mc.StorageName), type(test_storage) # change for directories
+        assert isinstance(test_storage, mc.StorageName), type(test_storage)
         assert test_storage.file_name == test_f_name, 'wrong file name'
         assert test_storage.source_names[0] == test_f_name, 'wrong fname on disk'
     finally:

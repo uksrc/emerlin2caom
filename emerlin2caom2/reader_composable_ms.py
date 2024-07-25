@@ -1,10 +1,11 @@
 import logging
 
 import casatools
-import data_util as du
+from emerlin2caom2 import data_util as du
+from astropy.io import fits
 
 
-msmd = casatools.msmetadata()
+ms = casatools.ms()
 
 __all__ = [
     'FileInfo',
@@ -120,11 +121,22 @@ class FileMetadataReader(MetadataReader):
     def _retrieve_headers(self, key, source_name):
         self._headers[key] = []
 
-        msmd.open(source_name)
-        sum_dict = msmd.summary()
-        sum_keys = sum_dict.keys()
-        msmd.done()
+        ms.open(source_name)
+        ms_dict = ms.getscansummary()
+        ms.close()
 
-        meta_headers = [key for key in sum_keys if 'observationID' not in key]
+        hdu_list = []
+        for key, item in ms_dict.items():
+            for key_2, item_2 in item.items():
+                ms_header = fits.Header()
+                for head_key, head_value in item_2.items():
+                    try:
+                        ms_header[head_key] = head_value
+                    except ValueError:
+                        ms_header[head_key] = str(head_value)
+                    hdu_list.append(ms_header)
+
+
+        meta_headers = [key for key in hdu_list]
 
         self._headers[key] = meta_headers

@@ -1,7 +1,7 @@
 # place-holder for new manage_composable module
 import os
 
-from caom2 import ObservationReader
+from caom2 import ObservationReader, ObservationWriter
 
 class CadcException(Exception):
     """Generic exception raised by failure cases within the caom2pipe
