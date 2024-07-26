@@ -78,18 +78,18 @@ from caom2pipe import manage_composable as mc
 
 
 __all__ = [
-    'BlankMapping',
-    'BlankName',
+    'EMerlinMapping',
+    'EMerlin',
 ]
 
 
-class BlankName(mc.StorageName):
+class EMerlin(mc.StorageName):
     """Naming rules:
     - support mixed-case file name storage, and mixed-case obs id values
     - support uncompressed files in storage
     """
 
-    BLANK_NAME_PATTERN = '*'
+    E_MERLIN_PATTERN = '*'
 
     def __init__(self, entry):
         super().__init__(file_name=basename(entry), source_names=[entry])
@@ -98,7 +98,7 @@ class BlankName(mc.StorageName):
         return True
 
 
-class BlankMapping(cc.TelescopeMapping):
+class EMerlinMapping(cc.TelescopeMapping):
     def __init__(self, storage_name, headers, clients, observable, observation, config):
         super().__init__(storage_name, headers, clients, observable, observation, config)
 

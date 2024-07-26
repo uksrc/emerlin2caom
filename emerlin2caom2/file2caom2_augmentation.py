@@ -71,18 +71,18 @@ from caom2pipe import caom_composable as cc
 from emerlin2caom2 import main_app
 
 
-__all__ = ['BlankFits2caom2Visitor']
+__all__ = ['EMerlinMS2Visitor']
 
 
-class BlankFits2caom2Visitor(cc.Fits2caom2Visitor):
+class EMerlinMS2Visitor(cc.Fits2caom2Visitor):
     def __init__(self, observation, **kwargs):
         super().__init__(observation, **kwargs)
 
     def _get_mapping(self, headers, _):
-        return main_app.BlankMapping(
+        return main_app.EMerlinMapping(
             self._storage_name, headers, self._clients, self._observable, self._observation, self._config
         )
 
 
 def visit(observation, **kwargs):
-    return BlankFits2caom2Visitor(observation, **kwargs).visit()
+    return EMerlinMS2Visitor(observation, **kwargs).visit()
