@@ -4,7 +4,8 @@ COLLECTION="emerlin"
 IMAGE="opencadc/${COLLECTION}2caom2"
 
 echo "Get a proxy certificate"
-cp $HOME/.ssl/cadcproxy.pem ./ || exit $?
+# cp $HOME/.ssl/cadcproxy.pem ./ || exit $?
+cp /etc/ssl/certs/rootCA.pem ./ || exit $?
 
 echo "Get image ${IMAGE}"
 docker pull ${IMAGE}

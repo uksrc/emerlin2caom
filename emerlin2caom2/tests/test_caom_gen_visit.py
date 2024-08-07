@@ -70,11 +70,8 @@ from mock import patch
 
 from emerlin2caom2 import file2caom2_augmentation, main_app
 from caom2.diff import get_differences
-from emerlin2caom2 import astro_composable_ms as ac
-from emerlin2caom2 import manage_composable_ms as mc
-from emerlin2caom2 import reader_composable_ms as rdc
+from emerlin2caom2.old_code import astro_composable_ms as ac, manage_composable_ms as mc, reader_composable_ms as rdc
 
-import glob
 import os
 
 
