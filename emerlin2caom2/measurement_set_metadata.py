@@ -1,9 +1,8 @@
 import os
-from datetime import datetime
-import sys
+from hashlib import md5
 
+from cadcutils.util import date2ivoa
 from checksumdir import dirhash
-import numpy
 
 
 class FileInfo:
@@ -37,13 +36,22 @@ class FileInfo:
                                self.md5sum))
 
 
-
 def basename(name):
+    """
+    Adaptation of os.basename for use with directories, instead of files
+    :param name: Full path to directory
+    :returns: Name of the directory, without path
+    """
     base_name = os.path.dirname(name).split('/')[-1]
     return base_name
 
 
-def get_size(start_path = '.'):
+def get_size(start_path='.'):
+    """
+    Get the size of all objects contained within an input directory, recursively.
+    :param start_path: Name of directory to find size for
+    :returns: Total size of the contents of start_path in bytes
+    """
     total_size = 0
     for dirpath, dirnames, filenames in os.walk(start_path):
         for f in filenames:
@@ -54,8 +62,13 @@ def get_size(start_path = '.'):
 
     return total_size
 
+
 def get_file_type(fqn):
-    """Basic header extension to content_type lookup."""
+    """
+    Basic header extension to content_type lookup.
+    :param fqn: Name and path of input data
+    :returns: Content type
+    """
     lower_fqn = fqn.lower()
     if os.path.isdir(fqn):
         return 'application/measurement-set'
@@ -107,4 +120,3 @@ def get_local_file_info(fqn):
         file_type=file_type_local,
     )
     return meta
-

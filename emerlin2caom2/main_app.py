@@ -81,16 +81,30 @@ import casa_reader as casa
 import measurement_set_metadata as msmd
 
 __all__ = [
+    'basename',
+    'create_observation',
+    'upload_xml',
     'emerlin_main_app'
 ]
 
 
 def basename(name):
+    """
+    Adaptation of os.basename for use with directories, instead of files
+    :param name: Full path to directory
+    :returns: Name of the directory, without path
+    """
     base_name = os.path.dirname(name).split('/')[-1]
     return base_name
 
 
 def create_observation(storage_name, xml_out_dir):
+    """
+    Populates an XML document with caom format metadata, extracted from an input measurement set.
+    :param storage_name: Name of measurement set
+    :param xml_out_dir: Location for writing the output XML
+    :returns: Name of the output xml, id for the observation in the xml file
+    """
     obs_id = basename(storage_name)
     observation = SimpleObservation('collection', obs_id)
     observation.obs_type = 'science'
@@ -124,7 +138,9 @@ def create_observation(storage_name, xml_out_dir):
 
 def upload_xml(xml_output_name, observation_id, rootca_cert, repo_url_base='https://src-data-repo.co.uk/torkeep/',
                collection='EMERLIN'):
-
+    """
+    Upload the xml file to the repository, not functional with current setup
+    """
     if rootca_cert is None:
         put_command = ['curl', '-X', 'PUT', '-T', xml_output_name,
                        repo_url_base+collection+'/'+observation_id]
@@ -139,17 +155,21 @@ def upload_xml(xml_output_name, observation_id, rootca_cert, repo_url_base='http
     # print(post_command)
     # subprocess.call(put_command)
     try:
-        subprocess.call(put_command) # method 405, not allowed
+        subprocess.call(put_command)  # method 405, not allowed
     except subprocess.CalledProcessError:
         subprocess.call(post_command)
 
 
 def emerlin_main_app(storage_name, rootca=None, xml_dir='.'):
-
+    """
+    Create XML and upload to repo
+    :param storage_name: Name of measurement set
+    :param rootca: loaction of rootca.pem
+    :param xml_dir: directory for storage of xml output
+    """
     xml_output_file, obs_id = create_observation(storage_name, xml_dir)
     upload_xml(xml_output_file, obs_id, rootca)
-
-    ## add something like this for logging later
+    # add something like this for logging later
     # try:
     #     result = to_caom2()
     #     sys.exit(result)
