@@ -1,3 +1,7 @@
+# emerlin2caom
+
+code to import [e-MERLIN](https://www.e-merlin.ac.uk) [pipeline](https://github.com/e-merlin/eMERLIN_CASA_pipeline) products into the [CAOM](https://github.com/opencadc/caom2)
+
 ## Initial changes to emerlin2caom2. 
 
 The codebase takes a measurement set as an input, extracts the relevant metadata to an xml file, and attempts to upload it to 
