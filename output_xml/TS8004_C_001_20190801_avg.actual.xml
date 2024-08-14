@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<caom2:Observation xmlns:caom2="http://www.opencadc.org/caom2/xml/v2.4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="caom2:SimpleObservation" caom2:id="74f43700-5e50-441d-9580-17567f25fda1">
+  <caom2:collection>BLANK</caom2:collection>
+  <caom2:observationID>TS8004_C_001_20190801_avg.ms</caom2:observationID>
+  <caom2:algorithm>
+    <caom2:name>exposure</caom2:name>
+  </caom2:algorithm>
+  <caom2:planes>
+    <caom2:plane caom2:id="840a2ebc-3750-4bba-a442-403a2813dc85">
+      <caom2:productID>TS8004_C_001_20190801_avg.ms</caom2:productID>
+      <caom2:dataProductType>image</caom2:dataProductType>
+      <caom2:calibrationLevel>1</caom2:calibrationLevel>
+      <caom2:artifacts>
+        <caom2:artifact caom2:id="78c2a2c0-8c9c-4b35-ae05-9b3bbcbd937d">
+          <caom2:uri>cadc:BLANK/TS8004_C_001_20190801_avg.ms</caom2:uri>
+          <caom2:productType>science</caom2:productType>
+          <caom2:releaseType>data</caom2:releaseType>
+          <caom2:contentType>application/measurement_set</caom2:contentType>
+          <caom2:contentLength>14935710969</caom2:contentLength>
+          <caom2:contentChecksum>md5:e56af5f3314f048648e19a82bf751f9a</caom2:contentChecksum>
+          <caom2:parts/>
+        </caom2:artifact>
+      </caom2:artifacts>
+    </caom2:plane>
+  </caom2:planes>
+</caom2:Observation>

@@ -70,33 +70,36 @@ from mock import patch
 
 from emerlin2caom2 import file2caom2_augmentation, main_app
 from caom2.diff import get_differences
-from caom2pipe import astro_composable as ac
-from caom2pipe import manage_composable as mc
-from caom2pipe import reader_composable as rdc
+from emerlin2caom2.old_code import astro_composable_ms as ac, manage_composable_ms as mc, reader_composable_ms as rdc
 
-import glob
 import os
 
 
 def pytest_generate_tests(metafunc):
-    obs_id_list = glob.glob(f'{metafunc.config.invocation_dir}/data/*.fits.header')
+    # obs_id_list = glob.glob(f'{metafunc.config.invocation_dir}/data/*.fits.header')
+    obs_id_list = ['/home/h14471mj/e-merlin/casa6_docker/prod/TS8004_C_001_20190801/TS8004_C_001_20190801_avg.ms']
     metafunc.parametrize('test_name', obs_id_list)
 
 
 @patch('caom2utils.data_util.get_local_headers_from_fits')
 def test_main_app(header_mock, test_name, test_config):
     header_mock.side_effect = ac.make_headers_from_file
-    storage_name = main_app.BlankName(entry=test_name)
+    storage_name = main_app.EMerlin(entry=test_name)
     metadata_reader = rdc.FileMetadataReader()
     metadata_reader.set(storage_name)
-    file_type = 'application/fits'
+    file_type = 'application/measurement_set'
     metadata_reader.file_info[storage_name.destination_uris[0]].file_type = file_type
     kwargs = {
         'storage_name': storage_name,
         'metadata_reader': metadata_reader,
         'config': test_config,
     }
-    expected_fqn = test_name.replace('.fits.header', '.expected.xml')
+    if '.fits.header' in test_name:
+        expected_fqn = test_name.replace('.fits.header', '.expected.xml')
+    elif test_name[-3:] == '.ms':
+        expected_fqn = test_name.replace('.ms', '.expected.xml')
+    else:
+        expected_fqn = test_name + '.expected.xml'
     in_fqn = expected_fqn.replace('.expected', '.in')
     actual_fqn = expected_fqn.replace('expected', 'actual')
     if os.path.exists(actual_fqn):
