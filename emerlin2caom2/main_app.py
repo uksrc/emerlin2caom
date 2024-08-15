@@ -71,14 +71,18 @@ This module implements the ObsBlueprint mapping, as well as the workflow
 entry point that executes the workflow.
 """
 
+import pickle
 import os
 import subprocess
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
-    ReleaseType, ObservationWriter, ProductType, ChecksumURI
+    ReleaseType, ObservationWriter, ProductType, ChecksumURI, Provenance, Position, Point, Energy, TargetPosition
+from setuptools.package_index import socket_timeout
 
 import casa_reader as casa
 import measurement_set_metadata as msmd
+import inputs_parser as ip
+import fits_reader as fr
 
 __all__ = [
     'basename',
@@ -94,7 +98,7 @@ def basename(name):
     :param name: Full path to directory
     :returns: Name of the directory, without path
     """
-    base_name = os.path.dirname(name).split('/')[-1]
+    base_name = name.split('/')[-1]
     return base_name
 
 
@@ -106,27 +110,98 @@ def create_observation(storage_name, xml_out_dir):
     :returns: Name of the output xml, id for the observation in the xml file
     """
     obs_id = basename(storage_name)
+    ms_dir = storage_name + '/{}_avg.ms'.format(obs_id) # maybe flimsy? depends on the rigidity of the em pipeline
+    pickle_file = storage_name + '/weblog/info/eMCP_info.pkl'
+    with open(pickle_file, 'rb') as f:
+        pickle_obj = pickle.load(f)
+
     observation = SimpleObservation('collection', obs_id)
     observation.obs_type = 'science'
     observation.intent = ObservationIntentType.SCIENCE
 
     observation.target = Target('TBD')
-    # observation.target.position = TargetPosition(str(find_mssources(ms_file)), 'J2000')
-    observation.telescope = Telescope(casa.get_obs_name(storage_name)[0])
-
+    target_name = pickle_obj['msinfo']['sources']['targets']
+    print(target_name)
+    observation.target.name = target_name
+    # observation.target.position = TargetPosition(str(casa.find_mssources(ms_dir)), 'J2000')
+    observation.telescope = Telescope(casa.get_obs_name(ms_dir)[0])
+    observation.telescope = Telescope('EMERLIN')
     observation.planes = TypedOrderedDict(Plane)
+
     plane = Plane(obs_id)
     observation.planes[obs_id] = plane
 
-    plane.artifacts = TypedOrderedDict(Artifact)
-    artifact = Artifact('uri:foo/bar', ProductType.SCIENCE, ReleaseType.META)
-    plane.artifacts['uri:foo/bar'] = artifact
+    provenance = Provenance(pickle_obj['pipeline_path'])
+    plane.provenance = provenance
+    provenance.version = pickle_obj['pipeline_version']
+    provenance.project = pickle_obj['msinfo']['project'][0]
+    provenance.runID = pickle_obj['msinfo']['run']
 
-    meta_data = msmd.get_local_file_info(storage_name)
+    ### These components need their output value to be changed a bit
+    # provenance.inputs = pickle_obj['inputs']['fits_path']
+    # provenance.keywords = str([key for key, value in pickle_obj['input_steps'].items() if value == 1])
+
+    plane.artifacts = TypedOrderedDict(Artifact)
+
+    artifact = Artifact('uri:{}'.format(storage_name), ProductType.SCIENCE, ReleaseType.META)
+    plane.artifacts['uri:{}'.format(storage_name)] = artifact
+
+    meta_data = msmd.get_local_file_info(ms_dir)
 
     artifact.content_type = meta_data.file_type
     artifact.content_length = meta_data.size
     artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
+
+    for directory in os.listdir(storage_name + '/weblog/plots/'):
+        for plots in os.listdir(storage_name + '/weblog/plots/' + directory + '/'):
+            plot_full_name = storage_name + '/weblog/plots/' + directory + '/' + plots
+            artifact = Artifact('uri:{}'.format(plot_full_name), ProductType.AUXILIARY, ReleaseType.META)
+            plane.artifacts['uri:{}'.format(plot_full_name)] = artifact
+            meta_data = msmd.get_local_file_info(plot_full_name)
+
+            artifact.content_type = meta_data.file_type
+            artifact.content_length = meta_data.size
+            artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
+
+    for directory in os.listdir(storage_name + '/weblog/images/'):
+        for images in os.listdir(storage_name + '/weblog/images/' + directory + '/'):
+            if images.endswith('-image.fits'):
+                plane_id = storage_name + '/weblog/images/' + directory + '/'
+                plane = Plane(plane_id)
+                observation.planes[plane_id] = plane
+                fits_header_data = fr.header_extraction(plane_id + images)
+
+                position = Position()
+                plane.position = position
+
+                plane.position.shape = Point(fits_header_data['ra_deg'], fits_header_data['dec_deg'])
+                # plane.position.shape.cval1 = fits_header_data['ra_deg']
+                # plane.position.shape.cval2 = fits_header_data['dec_deg']
+
+                energy = Energy()
+                plane.energy = energy
+                plane.energy.restwav = fits_header_data['central_freq'] # change freq to wav and check against model
+
+                provenance = Provenance(plane_id)
+                plane.provenance = provenance
+                provenance.version = fits_header_data['wsc_version']
+                break
+
+        plane.artifacts = TypedOrderedDict(Artifact)
+        for images in os.listdir(storage_name + '/weblog/images/' + directory + '/'):
+            images_full_name = storage_name + '/weblog/images/' + directory + '/' + images
+
+            artifact = Artifact('uri:{}'.format(images_full_name), ProductType.AUXILIARY, ReleaseType.META)
+            plane.artifacts['uri:{}'.format(images_full_name)] = artifact
+            meta_data = msmd.get_local_file_info(images_full_name)
+
+            artifact.content_type = meta_data.file_type
+            artifact.content_length = meta_data.size
+            artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
+
+
+
+
 
     xml_output_name = xml_out_dir + obs_id + '.xml'
 
@@ -168,7 +243,7 @@ def emerlin_main_app(storage_name, rootca=None, xml_dir='.'):
     :param xml_dir: directory for storage of xml output
     """
     xml_output_file, obs_id = create_observation(storage_name, xml_dir)
-    upload_xml(xml_output_file, obs_id, rootca)
+    # upload_xml(xml_output_file, obs_id, rootca)
     # add something like this for logging later
     # try:
     #     result = to_caom2()
