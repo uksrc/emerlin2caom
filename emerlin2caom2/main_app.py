@@ -111,12 +111,18 @@ def create_observation(storage_name, xml_out_dir):
     observation.intent = ObservationIntentType.SCIENCE
 
     observation.target = Target('TBD')
+    observation.target.keywords = Target(casa.find_mssources(storage_name))
     # observation.target.position = TargetPosition(str(find_mssources(ms_file)), 'J2000')
     observation.telescope = Telescope(casa.get_obs_name(storage_name)[0])
+    observation.telescope.keywords = Telescope(casa.get_antennas(storage_name))
 
     observation.planes = TypedOrderedDict(Plane)
     plane = Plane(obs_id)
     observation.planes[obs_id] = plane
+
+    energy_bounds_u, energy_bounds_l = casa.energy_bounds(storage_name)
+    plane.energy.bounds.lower = energy_bounds_l
+    plane.energy.bounds.upper = energy_bounds_u    
 
     plane.artifacts = TypedOrderedDict(Artifact)
     artifact = Artifact('uri:foo/bar', ProductType.SCIENCE, ReleaseType.META)

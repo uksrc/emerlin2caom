@@ -33,6 +33,28 @@ def get_obs_name(ms_file):
     msmd.done()
     return obs_name[0]
 
+def get_antennas(ms_file):
+    # Returns Antenna names list included in interferometer for this obs
+    msmd.open(ms_file)
+    antennas = msmd.antennanames()
+    msmd.close()
+    return antennas
+
+def freq2wl(freq):
+    # Convert frequency (Hz) to wavelength (m)
+    sol = 299792458
+    wl = sol/freq
+    return wl
+
+def energy_bounds(ms_file):
+    # Return energy bounds in wavelength (m)
+    msmd.open(ms_file)
+    nspw = msmd.nspw()
+    freq_ini = msmd.chanfreqs(0)[0]
+    freq_end = msmd.chanfreqs(nspw-1)[-1]
+    wl_upper = freq2wl(freq_ini)
+    wl_lower = freq2wl(freq_end)
+    return wl_upper, wl_lower
 
 def get_scan_sum(ms_file):
     """
