@@ -74,8 +74,8 @@ entry point that executes the workflow.
 import os
 import subprocess
 
-from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
-    ReleaseType, ObservationWriter, ProductType, ChecksumURI
+from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, Energy, \
+    EnergyBand, Interval, ReleaseType, ObservationWriter, ProductType, ChecksumURI
 
 import casa_reader as casa
 import measurement_set_metadata as msmd
@@ -120,9 +120,17 @@ def create_observation(storage_name, xml_out_dir):
     plane = Plane(obs_id)
     observation.planes[obs_id] = plane
 
-    #energy_bounds_u, energy_bounds_l = casa.energy_bounds(storage_name)
-    #plane.energy.bounds.lower = energy_bounds_l
-    #plane.energy.bounds.upper = energy_bounds_u    
+    # Make an Energy object for this Plane.
+    plane.energy = Energy()
+   
+    # Assign Energy object metadata, so far only bounds works.
+    energy_u, energy_l = casa.energy_bounds(storage_name)
+    plane.energy.bounds = Interval(energy_l, energy_u)
+
+    # These don't break anything but also aren't printed to xml...
+    plane.energy.bandpassName = 'TBD'
+    plane.energy.energyBands = "EnergyBand.RADIO"
+
 
     plane.artifacts = TypedOrderedDict(Artifact)
     artifact = Artifact('uri:foo/bar', ProductType.SCIENCE, ReleaseType.META)
