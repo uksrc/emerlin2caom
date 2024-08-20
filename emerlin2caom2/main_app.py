@@ -75,7 +75,8 @@ import os
 import subprocess
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, Energy, \
-    EnergyBand, Interval, ReleaseType, ObservationWriter, ProductType, ChecksumURI
+    EnergyBand, Interval, ReleaseType, ObservationWriter, ProductType, ChecksumURI, \
+    DataProductType, CalibrationLevel, Chunk, TypedList, TypedSet
 
 import casa_reader as casa
 import measurement_set_metadata as msmd
@@ -113,24 +114,31 @@ def create_observation(storage_name, xml_out_dir):
     observation.target = Target('TBD')
     observation.target.keywords = set(casa.find_mssources(storage_name))
     # observation.target.position = TargetPosition(str(find_mssources(ms_file)), 'J2000')
+
     observation.telescope = Telescope(casa.get_obs_name(storage_name)[0])
     observation.telescope.keywords = set(casa.get_antennas(storage_name))
 
     observation.planes = TypedOrderedDict(Plane)
     plane = Plane(obs_id)
     observation.planes[obs_id] = plane
+    
+    # Plane product is a calibrated measurement set.
+    # DataProductType vocabulary does not include visibility yet.
+    # CAOM2.5 should include.  For now, comment out
+    # plane.data_product_type = DataProductType.VISIBILITY
+    plane.calibration_level = CalibrationLevel.CALIBRATED    
 
-    # Make an Energy object for this Plane.
+    # Make an Energy object for this Plane
     plane.energy = Energy()
    
     # Assign Energy object metadata, so far only bounds works.
     energy_u, energy_l = casa.energy_bounds(storage_name)
     plane.energy.bounds = Interval(energy_l, energy_u)
-
-    # These don't break anything but also aren't printed to xml...
-    plane.energy.bandpassName = 'TBD'
-    plane.energy.energyBands = "EnergyBand.RADIO"
-
+    plane.energy.bandpass_name = str(casa.get_bandpass(storage_name))
+    
+    # These don't break anything but also aren't printed to xml.
+    #plane.energy.energy_bands = TypedSet(EnergyBand.RADIO)
+    plane.energy.energy_bands = TypedSet('Radio')
 
     plane.artifacts = TypedOrderedDict(Artifact)
     artifact = Artifact('uri:foo/bar', ProductType.SCIENCE, ReleaseType.META)

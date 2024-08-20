@@ -56,6 +56,26 @@ def energy_bounds(ms_file):
     wl_lower = freq2wl(freq_end)
     return wl_upper, wl_lower
 
+def get_bandpass(ms_file):
+    # Returns eMERLIN name for bandpass CAOM energy.bandpass_name
+    # To do: Combine with get_obsfreq for one open on nspw?
+    msmd.open(ms_file)
+    freq = msmd.chanfreqs(0)[0]/1e9
+    msmd.done()
+    band = ''
+    if (freq > 1.2) and (freq < 1.7):
+        band = 'L'
+    elif (freq > 4) and (freq < 8):
+        band = 'C'
+    elif (freq > 17) and (freq < 26):
+        band = 'K'
+    else:
+        print('Cannot determine band from frequency')
+        band = 'Null'
+    return band
+
+
+
 def get_scan_sum(ms_file):
     """
     Get summary for scan information
