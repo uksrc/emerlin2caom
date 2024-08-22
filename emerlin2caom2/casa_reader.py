@@ -4,6 +4,7 @@ import casatools
 
 msmd = casatools.msmetadata()
 ms = casatools.ms()
+tb = casatools.table()
 
 
 def find_mssources(ms_file):
@@ -14,13 +15,12 @@ def find_mssources(ms_file):
     """
     # Get list of sources from measurement set
     # To do: discern target and calibrators for CAOM Observation.targetName
+    # To do: Determine if each source a keyword or one keyword with list of sources.
     msmd.open(ms_file)
     # mssources = ','.join(numpy.sort(msmd.fieldnames()))
     mssources = msmd.fieldnames()
     msmd.done()
-    # logger.debug('Sources in MS {0}: {1}'.format(msfile, mssources))
     return mssources
-
 
 def get_obs_name(ms_file):
     """
@@ -52,12 +52,14 @@ def energy_bounds(ms_file):
     nspw = msmd.nspw()
     freq_ini = msmd.chanfreqs(0)[0]
     freq_end = msmd.chanfreqs(nspw-1)[-1]
+    msmd.close()
     wl_upper = freq2wl(freq_ini)
     wl_lower = freq2wl(freq_end)
     return wl_upper, wl_lower
 
 def get_bandpass(ms_file):
     # Returns eMERLIN name for bandpass CAOM energy.bandpass_name
+    # Also, could get from MS file name.
     # To do: Combine with get_obsfreq for one open on nspw?
     msmd.open(ms_file)
     freq = msmd.chanfreqs(0)[0]/1e9
@@ -74,7 +76,18 @@ def get_bandpass(ms_file):
         band = 'Null'
     return band
 
-
+def get_polar(ms_file):
+    """
+    Get polarisation state
+    :param ms_file: Name of measurement set
+    :returns: polarization type and number of dimensions.
+    """
+    tb.open(ms_file+'/FEED')
+    polarization = tb.getcol('POLARIZATION_TYPE')
+    pol_dim = tb.getcol('NUM_RECEPTORS')[0]
+    tb.close()
+    pol_type = list(polarization[:,0])    
+    return pol_type, pol_dim
 
 def get_scan_sum(ms_file):
     """

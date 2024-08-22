@@ -76,7 +76,7 @@ import subprocess
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, Energy, \
     EnergyBand, Interval, ReleaseType, ObservationWriter, ProductType, ChecksumURI, \
-    DataProductType, CalibrationLevel, Chunk, TypedList, TypedSet
+    DataProductType, CalibrationLevel, Chunk, TypedList, TypedSet, Polarization
 
 import casa_reader as casa
 import measurement_set_metadata as msmd
@@ -124,22 +124,35 @@ def create_observation(storage_name, xml_out_dir):
     
     # Plane product is a calibrated measurement set.
     # DataProductType vocabulary does not include visibility yet.
-    # CAOM2.5 should include.  For now, comment out
+    # CAOM2.5 should include.  For now, comment out.
     # plane.data_product_type = DataProductType.VISIBILITY
+
+    # So far, all eMERLIN measurement sets have been calibrated.
+    # If raw, then it is in fits.idi format, not ms.
+    # If we are including images/plots, then we need to change this.
     plane.calibration_level = CalibrationLevel.CALIBRATED    
 
     # Make an Energy object for this Plane
     plane.energy = Energy()
    
-    # Assign Energy object metadata, so far only bounds works.
+    # Assign Energy object metadata
     energy_u, energy_l = casa.energy_bounds(storage_name)
     plane.energy.bounds = Interval(energy_l, energy_u)
     plane.energy.bandpass_name = str(casa.get_bandpass(storage_name))
     
-    # These don't break anything but also aren't printed to xml.
-    #plane.energy.energy_bands = TypedSet(EnergyBand.RADIO)
+    # These don't break anything but also aren't printed to xml. 
+    # Waiting on patch for obs_reader_writer.py
     plane.energy.energy_bands = TypedSet('Radio')
 
+    plane.polarization = Polarization()
+    # See if polarization will go in for Plane. 
+    pol_states, dim = casa.get_polar(storage_name)
+    plane.polarization.dimension = int(dim)
+    
+    # This one isn't working quite right yet-- see obs_reader_writer.py
+    #plane.polarization.polarization_states = pol_states
+
+    # Artifact section. Why is is uri:foo/bar here?
     plane.artifacts = TypedOrderedDict(Artifact)
     artifact = Artifact('uri:foo/bar', ProductType.SCIENCE, ReleaseType.META)
     plane.artifacts['uri:foo/bar'] = artifact
@@ -150,13 +163,13 @@ def create_observation(storage_name, xml_out_dir):
     artifact.content_length = meta_data.size
     artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
 
+    # XML output section
     xml_output_name = xml_out_dir + obs_id + '.xml'
 
     writer = ObservationWriter()
     writer.write(observation, xml_output_name)
 
     return xml_output_name, obs_id
-
 
 def upload_xml(xml_output_name, observation_id, rootca_cert, repo_url_base='https://src-data-repo.co.uk/torkeep/',
                collection='EMERLIN'):
