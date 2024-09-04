@@ -1,5 +1,4 @@
 import numpy
-
 import casatools
 
 msmd = casatools.msmetadata()
