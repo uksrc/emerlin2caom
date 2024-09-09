@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<caom2:Observation xmlns:caom2="http://www.opencadc.org/caom2/xml/v2.4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="caom2:SimpleObservation" caom2:id="dba8e6e0-5b19-449a-bc30-2d93a3b8ae39">
+<caom2:Observation xmlns:caom2="http://www.opencadc.org/caom2/xml/v2.4" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="caom2:SimpleObservation" caom2:id="887adddc-4757-43bc-aaa7-1af6ab99d39e">
   <caom2:collection>collection</caom2:collection>
   <caom2:observationID>TS8004_C_001_20190801</caom2:observationID>
   <caom2:algorithm>
@@ -9,26 +9,26 @@
   <caom2:target>
     <caom2:name>TBD</caom2:name>
     <caom2:keywords>
-      <caom2:keyword>1252+5634</caom2:keyword>
       <caom2:keyword>1302+5748</caom2:keyword>
-      <caom2:keyword>0319+4130</caom2:keyword>
-      <caom2:keyword>1407+2827</caom2:keyword>
       <caom2:keyword>1331+3030</caom2:keyword>
+      <caom2:keyword>1407+2827</caom2:keyword>
+      <caom2:keyword>1252+5634</caom2:keyword>
+      <caom2:keyword>0319+4130</caom2:keyword>
     </caom2:keywords>
   </caom2:target>
   <caom2:telescope>
     <caom2:name>e-MERLIN</caom2:name>
     <caom2:keywords>
+      <caom2:keyword>Kn</caom2:keyword>
       <caom2:keyword>Mk2</caom2:keyword>
       <caom2:keyword>Pi</caom2:keyword>
-      <caom2:keyword>Kn</caom2:keyword>
       <caom2:keyword>Cm</caom2:keyword>
       <caom2:keyword>De</caom2:keyword>
       <caom2:keyword>Da</caom2:keyword>
     </caom2:keywords>
   </caom2:telescope>
   <caom2:planes>
-    <caom2:plane caom2:id="cafc12ae-a849-4696-ac62-6b98a8e2da74">
+    <caom2:plane caom2:id="9ee6947e-834b-4cf6-8d87-3b6f360ff551">
       <caom2:productID>TS8004_C_001_20190801</caom2:productID>
       <caom2:calibrationLevel>2</caom2:calibrationLevel>
       <caom2:energy>
@@ -42,7 +42,7 @@
         <caom2:dimension>2</caom2:dimension>
       </caom2:polarization>
       <caom2:artifacts>
-        <caom2:artifact caom2:id="cec64d52-5d85-4d71-9b71-eb3957a04f24">
+        <caom2:artifact caom2:id="d706b841-3d01-492d-ab81-39b8185b2882">
           <caom2:uri>uri:foo/bar</caom2:uri>
           <caom2:productType>science</caom2:productType>
           <caom2:releaseType>meta</caom2:releaseType>

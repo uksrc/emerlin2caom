@@ -1,70 +1,56 @@
-import numpy
+# This module extracts metadata from eMERLIN measurement sets via casa
+# -built operations.  When more table.open operations are added, it 
+# would be good to combine them all into one open.
 
+import numpy
 import casatools
 
 msmd = casatools.msmetadata()
 ms = casatools.ms()
 tb = casatools.table()
 
-
-def find_mssources(ms_file):
+def msmd_collect(ms_file):
     """
-    Get list of sources contained within a measurement set
-    :param ms_file: Input measurement set name
-    :returns: List of coordinates for sources
+    Consolidate opening measurement set to one function
+    :param ms_file: Input measurement set
+    :returns msmd_elements: data structure dictionary of relevant 
+    metadata
+
     """
-    # Get list of sources from measurement set
-    # To do: discern target and calibrators for CAOM Observation.targetName
-    # To do: Determine if each source a keyword or one keyword with list of sources.
-    msmd.open(ms_file)
-    # mssources = ','.join(numpy.sort(msmd.fieldnames()))
-    mssources = msmd.fieldnames()
-    msmd.done()
-    return mssources
 
-def get_obs_name(ms_file):
-    """
-    Get name of observatory from measurement set
-    :param ms_file: Name of measurement set
-    :returns: Name of observatory, string
-    """
-    msmd.open(ms_file)
-    obs_name = msmd.observatorynames()
-    msmd.done()
-    return obs_name
-
-def get_antennas(ms_file):
-    # Returns Antenna names list included in interferometer for this obs
-    msmd.open(ms_file)
-    antennas = msmd.antennanames()
-    msmd.close()
-    return antennas
-
-def freq2wl(freq):
-    # Convert frequency (Hz) to wavelength (m)
-    sol = 299792458
-    wl = sol/freq
-    return wl
-
-def energy_bounds(ms_file):
-    # Return energy bounds in wavelength (m)
     msmd.open(ms_file)
     nspw = msmd.nspw()
-    freq_ini = msmd.chanfreqs(0)[0]
-    freq_end = msmd.chanfreqs(nspw-1)[-1]
+    msmd_elements = {
+        'mssources': msmd.fieldnames(),
+        'tel_name': msmd.observatorynames(),
+        'antennas': msmd.antennanames(),
+        'wl_upper': msmd.chanfreqs(0)[0],
+        'wl_lower': msmd.chanfreqs(nspw-1)[-1],
+        'chan_res': msmd.chanwidths(0)[0],
+        'nchan': len(msmd.chanwidths(0)),
+    }
     msmd.close()
-    wl_upper = freq2wl(freq_ini)
-    wl_lower = freq2wl(freq_end)
-    return wl_upper, wl_lower
 
-def get_bandpass(ms_file):
-    # Returns eMERLIN name for bandpass CAOM energy.bandpass_name
-    # Also, could get from MS file name.
-    # To do: Combine with get_obsfreq for one open on nspw?
-    msmd.open(ms_file)
-    freq = msmd.chanfreqs(0)[0]/1e9
-    msmd.done()
-    band = ''
+    # Dictionary of changes
+    elements_convert = {
+        'wl_upper': freq2wl(msmd_elements['wl_upper']),
+        'wl_lower': freq2wl(msmd_elements['wl_lower']),
+        'chan_res': msmd_elements['chan_res']/1e9,
+        'bp_name': emerlin_band(msmd_elements['wl_upper'])
+    }
+
+    # Update dictionary with converted values and additions.
+    msmd_elements.update(elements_convert)
+
+    return msmd_elements
+
+def emerlin_band(freq):
+    """
+    Determine eMERLIN band name from frequency
+    :param freq: Frequency in Hz
+    :return band_name: string
+    """
+    freq = freq/1e9
     if (freq > 1.2) and (freq < 1.7):
         band = 'L'
     elif (freq > 4) and (freq < 8):
@@ -75,6 +61,12 @@ def get_bandpass(ms_file):
         print('Cannot determine band from frequency')
         band = 'Null'
     return band
+
+def freq2wl(freq):
+    # Convert frequency (Hz) to wavelength (m)
+    sol = 299792458
+    wl = sol/freq
+    return wl
 
 def get_polar(ms_file):
     """

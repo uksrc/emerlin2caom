@@ -111,12 +111,16 @@ def create_observation(storage_name, xml_out_dir):
     observation.obs_type = 'science'
     observation.intent = ObservationIntentType.SCIENCE
 
+    # Collect measurement set metadata via casa tools into py dictionary \
+    # for all casatools.msmetadata opens
+    msmd_dict = casa.msmd_collect(storage_name)
+
     observation.target = Target('TBD')
-    observation.target.keywords = set(casa.find_mssources(storage_name))
+    observation.target.keywords = set(msmd_dict["mssources"])
     # observation.target.position = TargetPosition(str(find_mssources(ms_file)), 'J2000')
 
-    observation.telescope = Telescope(casa.get_obs_name(storage_name)[0])
-    observation.telescope.keywords = set(casa.get_antennas(storage_name))
+    observation.telescope = Telescope(msmd_dict["tel_name"][0])
+    observation.telescope.keywords = set(msmd_dict["antennas"])
 
     observation.planes = TypedOrderedDict(Plane)
     plane = Plane(obs_id)
@@ -136,9 +140,8 @@ def create_observation(storage_name, xml_out_dir):
     plane.energy = Energy()
    
     # Assign Energy object metadata
-    energy_u, energy_l = casa.energy_bounds(storage_name)
-    plane.energy.bounds = Interval(energy_l, energy_u)
-    plane.energy.bandpass_name = str(casa.get_bandpass(storage_name))
+    plane.energy.bounds = Interval(msmd_dict["wl_lower"], msmd_dict["wl_upper"])
+    plane.energy.bandpass_name = str(msmd_dict["bp_name"])
     
     # These don't break anything but also aren't printed to xml. 
     # Waiting on patch for obs_reader_writer.py
