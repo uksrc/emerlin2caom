@@ -30,8 +30,10 @@ For attempting upload, [Stephen's docker-compose setup](https://github.com/uksrc
 There is a simple test included in "test.py", the xml should be produced but the upload is expected to return a 403 permission denied with the current repository setup. 
 Change the input values within the file as necessary
 
+## Details of metadata collection from observatory measurement set
+
 emerlin2caom currently is comprised of a set of functions to interact with the measurement set data product via casatools, casa_reader.py.  This script still needs optimisation, to consolidate the number of opens to as few as possible.
 
-The main_app.py script contains an observation function which assigns metadata to caom elements for observations, planes and artifacts, and writes these to an xml file.  An argument could be made for abstracting this whole function out of main as this is effectively mapping out a 'blueprint'. The syntax needed for various elements by the caom2 code used to produce the XML for the database can be a bit diverse (documentation and data model and some blueprints say 'plane.energy.bandpassName', while what the code requires is actually 'plane.energy.bandpass_name', for example).  However, it may be helpful to see documentation on caom2tools/caom2/caom2 repository.  
+The main_app.py script contains an observation function which assigns metadata to caom elements for observations, planes and artifacts, and writes these to an xml file.  An argument could be made for abstracting this whole function out of main as this is effectively mapping out a 'blueprint'. The syntax needed for various elements by the caom2 code used to produce the XML for the database can be a bit diverse (documentation and data model and some blueprints say 'plane.energy.bandpassName', while what the code requires is actually 'plane.energy.bandpass_name', for example).  It may be helpful to see readme documentation on [caom2tools/caom2](https://github.com/opencadc/caom2tools/tree/main/caom2).  
 
 For collecting information on the actual data product artifact, the script to determine file type and discern measurement set status is called measurement_set_metadata.py.  This script needs renaming and reworking potentially to respond/interact with main_app.py with regard to determining other data product types such as 'image' or 'plot'.   
