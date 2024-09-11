@@ -74,8 +74,9 @@ entry point that executes the workflow.
 import os
 import subprocess
 
-from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
-    ReleaseType, ObservationWriter, ProductType, ChecksumURI
+from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, Energy, \
+    EnergyBand, Interval, ReleaseType, ObservationWriter, ProductType, ChecksumURI, \
+    DataProductType, CalibrationLevel, Chunk, TypedList, TypedSet, Polarization
 
 import casa_reader as casa
 import measurement_set_metadata as msmd
@@ -110,14 +111,51 @@ def create_observation(storage_name, xml_out_dir):
     observation.obs_type = 'science'
     observation.intent = ObservationIntentType.SCIENCE
 
+    # Collect measurement set metadata via casa tools into py dictionary \
+    # for all casatools.msmetadata opens
+    msmd_dict = casa.msmd_collect(storage_name)
+
     observation.target = Target('TBD')
+    observation.target.keywords = set(msmd_dict["mssources"])
     # observation.target.position = TargetPosition(str(find_mssources(ms_file)), 'J2000')
-    observation.telescope = Telescope(casa.get_obs_name(storage_name)[0])
+
+    observation.telescope = Telescope(msmd_dict["tel_name"][0])
+    observation.telescope.keywords = set(msmd_dict["antennas"])
 
     observation.planes = TypedOrderedDict(Plane)
     plane = Plane(obs_id)
     observation.planes[obs_id] = plane
+    
+    # Plane product is a calibrated measurement set.
+    # DataProductType vocabulary does not include visibility yet.
+    # CAOM2.5 should include.  For now, comment out.
+    # plane.data_product_type = DataProductType.VISIBILITY
 
+    # So far, all eMERLIN measurement sets have been calibrated.
+    # If raw, then it is in fits.idi format, not ms.
+    # If we are including images/plots, then we need to change this.
+    plane.calibration_level = CalibrationLevel.CALIBRATED    
+
+    # Make an Energy object for this Plane
+    plane.energy = Energy()
+   
+    # Assign Energy object metadata
+    plane.energy.bounds = Interval(msmd_dict["wl_lower"], msmd_dict["wl_upper"])
+    plane.energy.bandpass_name = str(msmd_dict["bp_name"])
+    
+    # These don't break anything but also aren't printed to xml. 
+    # Waiting on patch for obs_reader_writer.py
+    plane.energy.energy_bands = TypedSet('Radio')
+
+    plane.polarization = Polarization()
+    # See if polarization will go in for Plane. 
+    pol_states, dim = casa.get_polar(storage_name)
+    plane.polarization.dimension = int(dim)
+    
+    # This one isn't working quite right yet-- see obs_reader_writer.py
+    #plane.polarization.polarization_states = pol_states
+
+    # Artifact section. Why is is uri:foo/bar here?
     plane.artifacts = TypedOrderedDict(Artifact)
     artifact = Artifact('uri:foo/bar', ProductType.SCIENCE, ReleaseType.META)
     plane.artifacts['uri:foo/bar'] = artifact
@@ -128,13 +166,13 @@ def create_observation(storage_name, xml_out_dir):
     artifact.content_length = meta_data.size
     artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
 
+    # XML output section
     xml_output_name = xml_out_dir + obs_id + '.xml'
 
     writer = ObservationWriter()
     writer.write(observation, xml_output_name)
 
     return xml_output_name, obs_id
-
 
 def upload_xml(xml_output_name, observation_id, rootca_cert, repo_url_base='https://src-data-repo.co.uk/torkeep/',
                collection='EMERLIN'):
@@ -168,7 +206,7 @@ def emerlin_main_app(storage_name, rootca=None, xml_dir='.'):
     :param xml_dir: directory for storage of xml output
     """
     xml_output_file, obs_id = create_observation(storage_name, xml_dir)
-    upload_xml(xml_output_file, obs_id, rootca)
+    #upload_xml(xml_output_file, obs_id, rootca)
     # add something like this for logging later
     # try:
     #     result = to_caom2()
