@@ -42,6 +42,8 @@ def create_observation(storage_name, xml_out_dir):
     with open(pickle_file, 'rb') as f:
         pickle_obj = pickle.load(f)
 
+    casa_info = casa.msmd_collect(storage_name)
+
     observation = SimpleObservation('EMERLIN', obs_id)
     observation.obs_type = 'science'
     observation.intent = ObservationIntentType.SCIENCE
@@ -52,7 +54,7 @@ def create_observation(storage_name, xml_out_dir):
     observation.target.name = target_name
     # this needs correcting so that the data format is correct, unsure what it wants right now
     # observation.target.position = TargetPosition(str(casa.find_mssources(ms_dir)), 'J2000')
-    observation.telescope = Telescope(casa.get_obs_name(ms_dir)[0])
+    observation.telescope = Telescope(casa_info['tel_name'])
     # observation.telescope = Telescope('EMERLIN')
     observation.planes = TypedOrderedDict(Plane)
 
