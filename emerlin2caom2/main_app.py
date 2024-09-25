@@ -18,6 +18,8 @@ __all__ = [
     'emerlin_main_app'
 ]
 
+from setup import LICENSE
+
 
 def basename(name):
     """
@@ -42,7 +44,7 @@ def create_observation(storage_name, xml_out_dir):
     with open(pickle_file, 'rb') as f:
         pickle_obj = pickle.load(f)
 
-    casa_info = casa.msmd_collect(storage_name)
+    casa_info = casa.msmd_collect(ms_dir)
 
     observation = SimpleObservation('EMERLIN', obs_id)
     observation.obs_type = 'science'
@@ -54,7 +56,7 @@ def create_observation(storage_name, xml_out_dir):
     observation.target.name = target_name
     # this needs correcting so that the data format is correct, unsure what it wants right now
     # observation.target.position = TargetPosition(str(casa.find_mssources(ms_dir)), 'J2000')
-    observation.telescope = Telescope(casa_info['tel_name'])
+    observation.telescope = Telescope(casa_info['tel_name'][0])
     # observation.telescope = Telescope('EMERLIN')
     observation.planes = TypedOrderedDict(Plane)
 
@@ -81,6 +83,7 @@ def create_observation(storage_name, xml_out_dir):
     artifact.content_type = meta_data.file_type
     artifact.content_length = meta_data.size
     artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
+
 
     for directory in os.listdir(storage_name + '/weblog/plots/'):
         for plots in os.listdir(storage_name + '/weblog/plots/' + directory + '/'):
@@ -133,7 +136,28 @@ def create_observation(storage_name, xml_out_dir):
             artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
 
 
+    for directory in os.listdir(storage_name + '/weblog/calib/'):
+        extension = directory.split('.')[-1]
+        if extension in ['txt', 'pkl']:
+            pass
+        elif extension == 'png':
+            # do not know how to assign this ancillary data product to the proper plane
+            unprocessed_plots = [directory]
+        else:
+            # may want to add try, except clause here when completed for robustness
+            plane_id_full = storage_name + '/weblog/calib/' + directory + '/'
+            plane = Plane(directory)
+            observation.planes[directory] = plane
+            plane.artifacts = TypedOrderedDict(Artifact)
 
+            artifact = Artifact('uri:{}'.format(directory), ProductType.SCIENCE, ReleaseType.META)
+            plane.artifacts['uri:{}'.format(directory)] = artifact
+            # right now, a new plane is not needed but in-future, it will be when including position, energy, etc
+            meta_data = msmd.get_local_file_info(plane_id_full)
+
+            artifact.content_type = meta_data.file_type
+            artifact.content_length = meta_data.size
+            artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
 
 
     xml_output_name = xml_out_dir + obs_id + '.xml'
