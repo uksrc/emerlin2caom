@@ -10,162 +10,152 @@ import casa_reader as casa
 import measurement_set_metadata as msmd
 # import inputs_parser as ip
 import fits_reader as fr
+import settings_file as set
 
 __all__ = [
-    'basename',
-    'create_observation',
+    'EmerlinMetadata',
     'upload_xml',
     'emerlin_main_app'
 ]
 
-from setup import LICENSE
-
-
-def basename(name):
-    """
-    Adaptation of os.basename for use with directories, instead of files
-    :param name: Full path to directory
-    :returns: Name of the directory, without path
-    """
-    base_name = name.split('/')[-1]
-    return base_name
-
-
-def create_observation(storage_name, xml_out_dir):
+class EmerlinMetadata:
     """
     Populates an XML document with caom format metadata, extracted from an input measurement set.
     :param storage_name: Name of measurement set
     :param xml_out_dir: Location for writing the output XML
     :returns: Name of the output xml, id for the observation in the xml file
     """
-    obs_id = basename(storage_name)
-    ms_dir = storage_name + '/{}_avg.ms'.format(obs_id) # maybe flimsy? depends on the rigidity of the em pipeline
-    pickle_file = storage_name + '/weblog/info/eMCP_info.pkl'
-    with open(pickle_file, 'rb') as f:
-        pickle_obj = pickle.load(f)
+    storage_name = set.storage_name
+    rootca = set.rootca
+    xml_out_dir = set.xmldir
+    ska_token = set.ska_token
 
-    casa_info = casa.msmd_collect(ms_dir)
+    def basename(self, name):
+        """
+        Adaptation of os.basename for use with directories, instead of files
+        :param name: Full path to directory
+        :returns: Name of the directory, without path
+        """
+        base_name = name.split('/')[-1]
+        return base_name
 
-    observation = SimpleObservation('EMERLIN', obs_id)
-    observation.obs_type = 'science'
-    observation.intent = ObservationIntentType.SCIENCE
+    def artifact_metadata(self, plane, artifact_full_name, plots):
+        # plot_full_name = storage_name + '/weblog/plots/' + directory + '/' + plots
+        artifact = Artifact('uri:{}'.format(plots), ProductType.AUXILIARY, ReleaseType.META)
+        plane.artifacts['uri:{}'.format(plots)] = artifact
+        meta_data = msmd.get_local_file_info(artifact_full_name)
 
-    observation.target = Target('TBD')
-    target_name = pickle_obj['msinfo']['sources']['targets']
-    print(target_name)
-    observation.target.name = target_name
-    # this needs correcting so that the data format is correct, unsure what it wants right now
-    # observation.target.position = TargetPosition(str(casa.find_mssources(ms_dir)), 'J2000')
-    observation.telescope = Telescope(casa_info['tel_name'][0])
-    # observation.telescope = Telescope('EMERLIN')
-    observation.planes = TypedOrderedDict(Plane)
+        artifact.content_type = meta_data.file_type
+        artifact.content_length = meta_data.size
+        artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
 
-    plane = Plane(obs_id)
-    observation.planes[obs_id] = plane
+    def fits_plane_metadata(self, observation, fits_full_name, images):
+        # plane_id_full = storage_name + '/weblog/images/' + directory + '/'
+        plane = Plane(images)
+        observation.planes[images] = plane
+        fits_header_data = fr.header_extraction(fits_full_name + images)
 
-    provenance = Provenance(basename(pickle_obj['pipeline_path']))
-    plane.provenance = provenance
-    provenance.version = pickle_obj['pipeline_version']
-    provenance.project = pickle_obj['msinfo']['project'][0]
-    provenance.runID = pickle_obj['msinfo']['run']
+        position = Position()
+        plane.position = position
+        plane.position.shape = Point(fits_header_data['ra_deg'], fits_header_data['dec_deg'])
 
-    ### These components need their output value to be changed somewhat
-    # provenance.inputs = pickle_obj['inputs']['fits_path']
-    # provenance.keywords = str([key for key, value in pickle_obj['input_steps'].items() if value == 1])
+        energy = Energy()
+        plane.energy = energy
+        plane.energy.restwav = fits_header_data['central_freq']  # change freq to wav and check against model
 
-    plane.artifacts = TypedOrderedDict(Artifact)
+        provenance = Provenance(images)
+        plane.provenance = provenance
+        provenance.version = fits_header_data['wsc_version']
 
-    artifact = Artifact('uri:{}'.format(storage_name), ProductType.SCIENCE, ReleaseType.META)
-    plane.artifacts['uri:{}'.format(storage_name)] = artifact
-
-    meta_data = msmd.get_local_file_info(ms_dir)
-
-    artifact.content_type = meta_data.file_type
-    artifact.content_length = meta_data.size
-    artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
+        return plane
 
 
-    for directory in os.listdir(storage_name + '/weblog/plots/'):
-        for plots in os.listdir(storage_name + '/weblog/plots/' + directory + '/'):
-            plot_full_name = storage_name + '/weblog/plots/' + directory + '/' + plots
-            # artifact = Artifact('uri:{}'.format(plot_full_name), ProductType.AUXILIARY, ReleaseType.META)
-            # plane.artifacts['uri:{}'.format(plot_full_name)] = artifact
-            artifact = Artifact('uri:{}'.format(plots), ProductType.AUXILIARY, ReleaseType.META)
-            plane.artifacts['uri:{}'.format(plots)] = artifact
-            meta_data = msmd.get_local_file_info(plot_full_name)
+    def measurement_set_metadata(self, observation, storage_path, ms_dir, pickle_obj):
 
-            artifact.content_type = meta_data.file_type
-            artifact.content_length = meta_data.size
-            artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
+        print(storage_path)
+        print(ms_dir)
+        ms_name = self.basename(ms_dir)
+        plane = Plane(ms_dir)
+        observation.planes[ms_dir] = plane
 
-    for directory in os.listdir(storage_name + '/weblog/images/'):
-        for images in os.listdir(storage_name + '/weblog/images/' + directory + '/'):
-            if images.endswith('-image.fits'):
-                plane_id_full = storage_name + '/weblog/images/' + directory + '/'
-                plane_id = directory
-                plane = Plane(images)
-                observation.planes[images] = plane
-                fits_header_data = fr.header_extraction(plane_id_full + images)
-
-                position = Position()
-                plane.position = position
-
-                plane.position.shape = Point(fits_header_data['ra_deg'], fits_header_data['dec_deg'])
-
-                energy = Energy()
-                plane.energy = energy
-                plane.energy.restwav = fits_header_data['central_freq'] # change freq to wav and check against model
-
-                provenance = Provenance(plane_id)
-                plane.provenance = provenance
-                provenance.version = fits_header_data['wsc_version']
-                break
+        provenance = Provenance(self.basename(pickle_obj['pipeline_path']))
+        plane.provenance = provenance
+        provenance.version = pickle_obj['pipeline_version']
+        provenance.project = pickle_obj['msinfo']['project'][0]
+        provenance.runID = pickle_obj['msinfo']['run']
 
         plane.artifacts = TypedOrderedDict(Artifact)
-        for images in os.listdir(storage_name + '/weblog/images/' + directory + '/'):
-            images_full_name = storage_name + '/weblog/images/' + directory + '/' + images
 
-            # artifact = Artifact('uri:{}'.format(images_full_name), ProductType.AUXILIARY, ReleaseType.META)
-            # plane.artifacts['uri:{}'.format(images_full_name)] = artifact
-            artifact = Artifact('uri:{}'.format(images), ProductType.AUXILIARY, ReleaseType.META)
-            plane.artifacts['uri:{}'.format(images)] = artifact
-            meta_data = msmd.get_local_file_info(images_full_name)
+        artifact = Artifact('uri:{}'.format(ms_name), ProductType.SCIENCE, ReleaseType.META)
+        plane.artifacts['uri:{}'.format(ms_name)] = artifact
+        meta_data = msmd.get_local_file_info(ms_dir)
 
-            artifact.content_type = meta_data.file_type
-            artifact.content_length = meta_data.size
-            artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
+        artifact.content_type = meta_data.file_type
+        artifact.content_length = meta_data.size
+        artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
 
+        return plane
+        ### These components need their output value to be changed somewhat
+        # provenance.inputs = pickle_obj['inputs']['fits_path']
+        # provenance.keywords = str([key for key, value in pickle_obj['input_steps'].items() if value == 1])
 
-    for directory in os.listdir(storage_name + '/weblog/calib/'):
-        extension = directory.split('.')[-1]
-        if extension in ['txt', 'pkl']:
-            pass
-        elif extension == 'png':
-            # do not know how to assign this ancillary data product to the proper plane
-            unprocessed_plots = [directory]
-        else:
-            # may want to add try, except clause here when completed for robustness
-            plane_id_full = storage_name + '/weblog/calib/' + directory + '/'
-            plane = Plane(directory)
-            observation.planes[directory] = plane
-            plane.artifacts = TypedOrderedDict(Artifact)
+    def build_metadata(self):
 
-            artifact = Artifact('uri:{}'.format(directory), ProductType.SCIENCE, ReleaseType.META)
-            plane.artifacts['uri:{}'.format(directory)] = artifact
-            # right now, a new plane is not needed but in-future, it will be when including position, energy, etc
-            meta_data = msmd.get_local_file_info(plane_id_full)
+        obs_id = self.basename(self.storage_name)
+        ms_dir = self.storage_name + '/{}_avg.ms'.format(obs_id) # maybe flimsy? depends on the rigidity of the em pipeline
+        pickle_file = self.storage_name + '/weblog/info/eMCP_info.pkl'
+        with open(pickle_file, 'rb') as f:
+            pickle_obj = pickle.load(f)
 
-            artifact.content_type = meta_data.file_type
-            artifact.content_length = meta_data.size
-            artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
+        casa_info = casa.msmd_collect(ms_dir)
 
+        observation = SimpleObservation('EMERLIN', obs_id)
+        observation.obs_type = 'science'
+        observation.intent = ObservationIntentType.SCIENCE
 
-    xml_output_name = xml_out_dir + obs_id + '.xml'
+        observation.target = Target('TBD')
+        target_name = pickle_obj['msinfo']['sources']['targets']
+        observation.target.name = target_name
+        # this needs correcting so that the data format is correct, unsure what it wants right now
+        # observation.target.position = TargetPosition(str(casa.find_mssources(ms_dir)), 'J2000')
+        observation.telescope = Telescope(casa_info['tel_name'][0])
+        # observation.telescope = Telescope('EMERLIN')
+        observation.planes = TypedOrderedDict(Plane)
 
-    writer = ObservationWriter()
-    writer.write(observation, xml_output_name)
+        plane = self.measurement_set_metadata(observation, self.storage_name, ms_dir, pickle_obj)
 
-    return xml_output_name, obs_id
+        for directory in os.listdir(self.storage_name + '/weblog/plots/'):
+            for plots in os.listdir(self.storage_name + '/weblog/plots/' + directory + '/'):
+                plot_full_name = self.storage_name + '/weblog/plots/' + directory + '/' + plots
+                self.artifact_metadata(plane, plot_full_name, plots)
+
+        for directory in os.listdir(self.storage_name + '/weblog/images/'):
+            main_fits = [x for x in os.listdir(self.storage_name + '/weblog/images/' + directory + '/') if x.endswith('-image.fits')]
+            plane_id_full = self.storage_name + '/weblog/images/' + directory + '/'
+            plane = self.fits_plane_metadata(observation, plane_id_full, main_fits[0])
+
+             # will this break?
+            for images in os.listdir(self.storage_name + '/weblog/images/' + directory + '/'):
+                images_full_name = self.storage_name + '/weblog/images/' + directory + '/' + images
+                self.artifact_metadata(plane, images_full_name, images)
+
+        for directory in os.listdir(self.storage_name + '/weblog/calib/'):
+            extension = directory.split('.')[-1]
+            if extension in ['txt', 'pkl']:
+                pass
+            elif extension == 'png':
+                # do not know how to assign this ancillary data product to the proper plane
+                unprocessed_plots = [directory]
+            else:
+                # may want to add try, except clause here when completed for robustness
+                plane_id_full = self.storage_name + '/weblog/calib/' + directory + '/'
+                self.measurement_set_metadata(observation, self.storage_name, plane_id_full, pickle_obj)
+
+        # structure of observation outside of functions?
+        xml_output_name = self.xml_out_dir + obs_id + '.xml'
+
+        writer = ObservationWriter()
+        writer.write(observation, xml_output_name)
 
 
 def upload_xml(xml_output_name, observation_id, rootca_cert, token,
