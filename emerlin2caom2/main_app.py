@@ -3,7 +3,8 @@ import os
 import subprocess
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
-    ReleaseType, ObservationWriter, ProductType, ChecksumURI, Provenance, Position, Point, Energy, TargetPosition
+    ReleaseType, ObservationWriter, ProductType, ChecksumURI, Provenance, Position, Point, Energy, TargetPosition, \
+    Interval, TypedSet, Polarization
 # from setuptools.package_index import socket_timeout
 
 import casa_reader as casa
@@ -14,8 +15,6 @@ import settings_file as set
 
 __all__ = [
     'EmerlinMetadata',
-    'upload_xml',
-    'emerlin_main_app'
 ]
 
 class EmerlinMetadata:
@@ -40,6 +39,12 @@ class EmerlinMetadata:
         return base_name
 
     def artifact_metadata(self, plane, artifact_full_name, plots):
+        '''
+        Creates metadata for physical artifacts, including type, size and hash value
+        :param plane: plane to add arrtifact metadata to
+        :param artifact_full_name: full location of target object
+        :param plots: name of artifact only, no path
+        '''
         # plot_full_name = storage_name + '/weblog/plots/' + directory + '/' + plots
         artifact = Artifact('uri:{}'.format(plots), ProductType.AUXILIARY, ReleaseType.META)
         plane.artifacts['uri:{}'.format(plots)] = artifact
@@ -50,6 +55,13 @@ class EmerlinMetadata:
         artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
 
     def fits_plane_metadata(self, observation, fits_full_name, images):
+        '''
+        Creates metadata for fits files, currently includes only basic information with scope to add more
+        :param observation: Class to add metadata to
+        :param fits_full_name: String format name and path to fits file
+        :param images: String name of fits file, no path
+        :returns: plane created for fits file to be passed to the artifact function
+        '''
         # plane_id_full = storage_name + '/weblog/images/' + directory + '/'
         plane = Plane(images)
         observation.planes[images] = plane
@@ -70,13 +82,40 @@ class EmerlinMetadata:
         return plane
 
 
-    def measurement_set_metadata(self, observation, storage_path, ms_dir, pickle_obj):
+    def measurement_set_metadata(self, observation, ms_dir, pickle_obj):
+        '''
+        Creates metadata for measurement sets, extracting infomation from the ms itself, as well as the pickle file
+        :param observation:  Class to add metadata to
+        :param ms_dir: string path and name of measurement set
+        :param pickle_obj: pickle object read in from file
+        :returns: Plane class where data was added
+        '''
 
-        print(storage_path)
-        print(ms_dir)
+
         ms_name = self.basename(ms_dir)
+        msmd_dict = casa.msmd_collect(ms_dir)
+
         plane = Plane(ms_dir)
         observation.planes[ms_dir] = plane
+
+        # Make an Energy object for this Plane
+        plane.energy = Energy()
+
+        # Assign Energy object metadata
+        plane.energy.bounds = Interval(msmd_dict["wl_lower"], msmd_dict["wl_upper"])
+        plane.energy.bandpass_name = str(msmd_dict["bp_name"])
+
+        # These don't break anything but also aren't printed to xml.
+        # Waiting on patch for obs_reader_writer.py
+        plane.energy.energy_bands = TypedSet('Radio')
+
+        plane.polarization = Polarization()
+        # See if polarization will go in for Plane.
+        pol_states, dim = casa.get_polar(ms_dir)
+        plane.polarization.dimension = int(dim)
+
+        # This one isn't working quite right yet-- see obs_reader_writer.py
+        # plane.polarization.polarization_states = pol_states
 
         provenance = Provenance(self.basename(pickle_obj['pipeline_path']))
         plane.provenance = provenance
@@ -88,6 +127,7 @@ class EmerlinMetadata:
 
         artifact = Artifact('uri:{}'.format(ms_name), ProductType.SCIENCE, ReleaseType.META)
         plane.artifacts['uri:{}'.format(ms_name)] = artifact
+
         meta_data = msmd.get_local_file_info(ms_dir)
 
         artifact.content_type = meta_data.file_type
@@ -100,7 +140,11 @@ class EmerlinMetadata:
         # provenance.keywords = str([key for key, value in pickle_obj['input_steps'].items() if value == 1])
 
     def build_metadata(self):
-
+        '''
+        Builds metadata for emerlin pipeline output, including main and calibration measurment sets, fits images,
+        plots and pickle file metadata. The target measurment set and output destination are definied within the
+        settings_file.py.
+        '''
         obs_id = self.basename(self.storage_name)
         ms_dir = self.storage_name + '/{}_avg.ms'.format(obs_id) # maybe flimsy? depends on the rigidity of the em pipeline
         pickle_file = self.storage_name + '/weblog/info/eMCP_info.pkl'
@@ -122,7 +166,7 @@ class EmerlinMetadata:
         # observation.telescope = Telescope('EMERLIN')
         observation.planes = TypedOrderedDict(Plane)
 
-        plane = self.measurement_set_metadata(observation, self.storage_name, ms_dir, pickle_obj)
+        plane = self.measurement_set_metadata(observation, ms_dir, pickle_obj)
 
         for directory in os.listdir(self.storage_name + '/weblog/plots/'):
             for plots in os.listdir(self.storage_name + '/weblog/plots/' + directory + '/'):
@@ -149,7 +193,7 @@ class EmerlinMetadata:
             else:
                 # may want to add try, except clause here when completed for robustness
                 plane_id_full = self.storage_name + '/weblog/calib/' + directory + '/'
-                self.measurement_set_metadata(observation, self.storage_name, plane_id_full, pickle_obj)
+                self.measurement_set_metadata(observation, plane_id_full, pickle_obj)
 
         # structure of observation outside of functions?
         xml_output_name = self.xml_out_dir + obs_id + '.xml'
@@ -158,64 +202,7 @@ class EmerlinMetadata:
         writer.write(observation, xml_output_name)
 
 
-def upload_xml(xml_output_name, observation_id, rootca_cert, token,
-               repo_url_base='https://src-data-repo.co.uk/torkeep/observations/',
-               collection='EMERLIN'):
-    """
-    Upload the xml file to the repository, not functional with current setup
-    """
-    # if rootca_cert is None:
-    #     put_command = ['curl', '-X', 'PUT', '-T', xml_output_name,
-    #                    repo_url_base+collection+'/'+observation_id]
-    #     post_command = ['curl', '-X', 'POST', '-T', xml_output_name,
-    #                     repo_url_base+collection+'/'+observation_id]
-    # else:
-    #     put_command = ['curl', '--cacert', '"'+rootca_cert+'"', '-v', '--header', '"Content-Type: text/xml"', '--header',
-    #                    '"authorization: bearer $SKA_TOKEN"', '-T', xml_output_name,
-    #                    repo_url_base+collection+'/'+observation_id]
-    #     post_command = ['curl', '--cacert', '"'+rootca_cert+'"', '-X', 'POST', '-T', xml_output_name,
-    #                     repo_url_base+collection+'/'+observation_id]
-    # # print(put_command)
-    # # print(post_command)
-    # # subprocess.call(put_command)
-    # try:
-    #     subprocess.call(put_command)  # method 405, not allowed
-    # except subprocess.CalledProcessError:
-
-    # I always need to define rootCa
-    # add a promt to regenerate the SKA_TOKEN?
-    # How should the POST command be formulated?
-
-
-    put_command = ['curl', '--cacert', rootca_cert, '-v', '--header', '"Content-Type: text/xml"', '--header',
-                       '"authorization: bearer {}"'.format(token), '-T', xml_output_name,
-                       repo_url_base+collection+'/'+observation_id]
-    # print(put_command)
-    return put_command
 
 
 
-def emerlin_main_app(storage_name, rootca, token, xml_dir='.'):
-    """
-    Create XML and upload to repo
-    :param storage_name: Name of measurement set
-    :param rootca: loaction of rootca.pem
-    :param xml_dir: directory for storage of xml output
-    :param token: bearer token for access
-    """
-    xml_output_file, obs_id = create_observation(storage_name, xml_dir)
-    put_com = upload_xml(xml_output_file, obs_id, rootca, token)
-    print(' '.join(put_com))
-    # subprocess.call(put_com) # put command from python does not work, authentication is different
-    # x-vo-authenticated vs www-authenticate: Bearer
-    # perhaps the requests module could rectify this?
-    # add something like this for logging later
-    # try:
-    #     result = to_caom2()
-    #     sys.exit(result)
-    # except Exception as e:
-    #     logging.error(
-    #         f'Failed {APPLICATION} execution for {args} with {str(e)}.')
-    #     tb = traceback.format_exc()
-    #     logging.error(tb)
-    #     sys.exit(-1)
+
