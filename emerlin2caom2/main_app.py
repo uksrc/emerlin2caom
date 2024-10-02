@@ -4,7 +4,7 @@ import subprocess
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
     ReleaseType, ObservationWriter, ProductType, ChecksumURI, Provenance, Position, Point, Energy, TargetPosition, \
-    Interval, TypedSet, Polarization
+    Interval, TypedSet, Polarization, shape
 # from setuptools.package_index import socket_timeout
 
 import casa_reader as casa
@@ -91,18 +91,19 @@ class EmerlinMetadata:
         :returns: Plane class where data was added
         '''
 
-
+        print(ms_dir)
         ms_name = self.basename(ms_dir)
         msmd_dict = casa.msmd_collect(ms_dir)
 
-        plane = Plane(ms_dir)
-        observation.planes[ms_dir] = plane
+        plane = Plane(ms_name)
+        observation.planes[ms_name] = plane
 
         # Make an Energy object for this Plane
         plane.energy = Energy()
 
         # Assign Energy object metadata
-        plane.energy.bounds = Interval(msmd_dict["wl_lower"], msmd_dict["wl_upper"])
+        sample = shape.SubInterval(msmd_dict["wl_lower"], msmd_dict["wl_upper"])
+        plane.energy.bounds = Interval(msmd_dict["wl_lower"], msmd_dict["wl_upper"], samples=[sample])
         plane.energy.bandpass_name = str(msmd_dict["bp_name"])
 
         # These don't break anything but also aren't printed to xml.
@@ -183,17 +184,19 @@ class EmerlinMetadata:
                 images_full_name = self.storage_name + '/weblog/images/' + directory + '/' + images
                 self.artifact_metadata(plane, images_full_name, images)
 
-        for directory in os.listdir(self.storage_name + '/weblog/calib/'):
-            extension = directory.split('.')[-1]
-            if extension in ['txt', 'pkl']:
-                pass
-            elif extension == 'png':
-                # do not know how to assign this ancillary data product to the proper plane
-                unprocessed_plots = [directory]
-            else:
-                # may want to add try, except clause here when completed for robustness
-                plane_id_full = self.storage_name + '/weblog/calib/' + directory + '/'
-                self.measurement_set_metadata(observation, plane_id_full, pickle_obj)
+
+        # removed for now but this structure can be used for auxiliary measurement sets in future
+        # for directory in os.listdir(self.storage_name + '/weblog/calib/'):
+        #     extension = directory.split('.')[-1]
+        #     if extension in ['txt', 'pkl']:
+        #         pass
+        #     elif extension == 'png':
+        #         # do not know how to assign this ancillary data product to the proper plane
+        #         unprocessed_plots = [directory]
+        #     else:
+        #         # may want to add try, except clause here when completed for robustness
+        #         plane_id_full = self.storage_name + '/weblog/calib/' + directory + '/'
+        #         self.measurement_set_metadata(observation, plane_id_full, pickle_obj)
 
         # structure of observation outside of functions?
         xml_output_name = self.xml_out_dir + obs_id + '.xml'

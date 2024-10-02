@@ -1,3 +1,4 @@
+convert
 # emerlin2caom
 
 Code to import [e-MERLIN](https://www.e-merlin.ac.uk) [pipeline](https://github.com/e-merlin/eMERLIN_CASA_pipeline) products into the [CAOM](https://github.com/opencadc/caom2)
@@ -22,10 +23,10 @@ Once the settings file is filled in, the code can be run using the run_script.py
 python run_script.py
 ```
 
-The expected output is an xml file which describes the metadata of the avg.ms, calibration measurement sets (found in
-weblog/calib), plots (found in weblog/plot), and fits images (found in weblog/images). 
+The expected output is an xml file which describes the metadata of the avg.ms, plots (found in weblog/plot), and fits images (found in weblog/images). 
 
 Objects that are included within the emerlin output but not the metadata currently are:
+- calibration measurement sets (found in weblog/calib),
 - input files default_params.json and inputs.ini
 - log files from casa and the emerlin pipeline
 - the eMERLIN_CASA_pipeline codebase

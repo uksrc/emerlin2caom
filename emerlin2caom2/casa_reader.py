@@ -17,8 +17,8 @@ def msmd_collect(ms_file):
     metadata
 
     """
-
     msmd.open(ms_file)
+
     nspw = msmd.nspw()
     msmd_elements = {
         'mssources': msmd.fieldnames(),
