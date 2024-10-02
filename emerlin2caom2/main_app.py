@@ -5,11 +5,9 @@ import subprocess
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
     ReleaseType, ObservationWriter, ProductType, ChecksumURI, Provenance, Position, Point, Energy, TargetPosition, \
     Interval, TypedSet, Polarization, shape
-# from setuptools.package_index import socket_timeout
 
 import casa_reader as casa
 import measurement_set_metadata as msmd
-# import inputs_parser as ip
 import fits_reader as fr
 import settings_file as set
 

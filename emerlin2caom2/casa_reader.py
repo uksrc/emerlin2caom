@@ -1,8 +1,6 @@
 # This module extracts metadata from eMERLIN measurement sets via casa
 # -built operations.  When more table.open operations are added, it 
 # would be good to combine them all into one open.
-
-import numpy
 import casatools
 
 msmd = casatools.msmetadata()
