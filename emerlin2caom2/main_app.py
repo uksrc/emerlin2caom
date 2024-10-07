@@ -4,7 +4,8 @@ import subprocess
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
     ReleaseType, ObservationWriter, ProductType, ChecksumURI, Provenance, Position, Point, Energy, TargetPosition, \
-    Interval, TypedSet, Polarization, shape
+    Interval, TypedSet, Polarization, shape, Proposal
+from pkg_resources import Environment
 
 import casa_reader as casa
 import measurement_set_metadata as msmd
@@ -138,7 +139,29 @@ class EmerlinMetadata:
         # provenance.inputs = pickle_obj['inputs']['fits_path']
         # provenance.keywords = str([key for key, value in pickle_obj['input_steps'].items() if value == 1])
 
-    def build_metadata(self):
+
+    def build_simple_observation(self, casa_info, pickle_obj, ante_id):
+
+        obs_id = self.basename(self.storage_name)
+
+        observation = SimpleObservation('EMERLIN', obs_id)
+        observation.obs_type = 'science'
+        observation.intent = ObservationIntentType.SCIENCE
+
+        observation.target = Target('TBD')
+        target_name = pickle_obj['msinfo']['sources']['targets']
+        observation.target.name = target_name
+
+        observation.telescope = Telescope(casa_info['tel_name'][0])
+        observation.proposal = Proposal(casa_info)
+
+        # geolocation of telescope is stated in terms of observatory and then offsets from that place?
+        # if so, are there then 7 telescopes, the six "antenna" and the observatory? Would make some sense
+        # honestly, I need more info though
+
+
+
+    def build_derived_observation(self):
         '''
         Builds metadata for emerlin pipeline output, including main and calibration measurment sets, fits images,
         plots and pickle file metadata. The target measurment set and output destination are definied within the

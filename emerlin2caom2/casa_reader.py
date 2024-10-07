@@ -16,16 +16,26 @@ def msmd_collect(ms_file):
 
     """
     msmd.open(ms_file)
-
     nspw = msmd.nspw()
+
+    antenna_ids = msmd.antennaids()
+    field_ids = range(msmd.nfields())
+
+
     msmd_elements = {
         'mssources': msmd.fieldnames(),
+        'phs_cntr': [msmd.phasecenter(x) for x in field_ids],
+        'field_time': [msmd.timesforfield(x) for x in field_ids],
         'tel_name': msmd.observatorynames(),
         'antennas': msmd.antennanames(),
+        'ante_off': [msmd.antennaoffset(x) for x in antenna_ids],
+        'ante_pos': [msmd.antenna_positions(x) for x in antenna_ids],
+        'obs_pos' : msmd.observatoryposition(),
         'wl_upper': msmd.chanfreqs(0)[0],
         'wl_lower': msmd.chanfreqs(nspw-1)[-1],
         'chan_res': msmd.chanwidths(0)[0],
-        'nchan': len(msmd.chanwidths(0)),
+        'nchan'   : len(msmd.chanwidths(0)),
+        'prop_id' : msmd.projects()[0]
     }
     msmd.close()
 
