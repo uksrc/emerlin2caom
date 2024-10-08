@@ -26,6 +26,7 @@ def msmd_collect(ms_file):
         'wl_lower': msmd.chanfreqs(nspw-1)[-1],
         'chan_res': msmd.chanwidths(0)[0],
         'nchan': len(msmd.chanwidths(0)),
+        'project': msmd.observers[0]
     }
     msmd.close()
 
@@ -89,3 +90,12 @@ def get_scan_sum(ms_file):
     scan_sum = ms.getscansummary()
     ms.close()
     return scan_sum
+
+def find_target():
+    tb.open(ms_file+'/FIELD')
+    source_name = tb.getcol('NAME')
+    source_type = tb.getcol('CODE')
+    source_ph_dir = tb.getcol('PHASE_DIR')
+    source_pos = tb.getcol('REFERENCE_DIR')
+    tb.close()
+    output

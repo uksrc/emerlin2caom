@@ -80,7 +80,7 @@ class EmerlinMetadata:
         return plane
 
 
-    def measurement_set_metadata(self, observation, ms_dir, pickle_obj):
+    def measurement_set_metadata(self, observation, obs_id, ms_dir, pickle_file):
         '''
         Creates metadata for measurement sets, extracting infomation from the ms itself, as well as the pickle file
         :param observation:  Class to add metadata to
@@ -116,11 +116,12 @@ class EmerlinMetadata:
         # This one isn't working quite right yet-- see obs_reader_writer.py
         # plane.polarization.polarization_states = pol_states
 
+        # provenance = Provenance(self.basename(pickle_obj['pipeline_path']))
         provenance = Provenance(self.basename(pickle_obj['pipeline_path']))
         plane.provenance = provenance
         provenance.version = pickle_obj['pipeline_version']
-        provenance.project = pickle_obj['msinfo']['project'][0]
-        provenance.runID = pickle_obj['msinfo']['run']
+        provenance.project = msmd_dict['project']
+        provenance.runID = obs_id
 
         plane.artifacts = TypedOrderedDict(Artifact)
 
@@ -157,7 +158,8 @@ class EmerlinMetadata:
         observation.intent = ObservationIntentType.SCIENCE
 
         observation.target = Target('TBD')
-        target_name = pickle_obj['msinfo']['sources']['targets']
+        # target_name = pickle_obj['msinfo']['sources']['targets']
+        target_name = casa_info
         observation.target.name = target_name
         # this needs correcting so that the data format is correct, unsure what it wants right now
         # observation.target.position = TargetPosition(str(casa.find_mssources(ms_dir)), 'J2000')
@@ -165,7 +167,7 @@ class EmerlinMetadata:
         # observation.telescope = Telescope('EMERLIN')
         observation.planes = TypedOrderedDict(Plane)
 
-        plane = self.measurement_set_metadata(observation, ms_dir, pickle_obj)
+        plane = self.measurement_set_metadata(observation, obs_id, ms_dir, pickle_obj)
 
         for directory in os.listdir(self.storage_name + '/weblog/plots/'):
             for plots in os.listdir(self.storage_name + '/weblog/plots/' + directory + '/'):
@@ -178,9 +180,10 @@ class EmerlinMetadata:
             plane = self.fits_plane_metadata(observation, plane_id_full, main_fits[0])
 
              # will this break?
-            for images in os.listdir(self.storage_name + '/weblog/images/' + directory + '/'):
-                images_full_name = self.storage_name + '/weblog/images/' + directory + '/' + images
-                self.artifact_metadata(plane, images_full_name, images)
+            if len(main_fits) > 0:
+                for images in os.listdir(self.storage_name + '/weblog/images/' + directory + '/'):
+                    images_full_name = self.storage_name + '/weblog/images/' + directory + '/' + images
+                    self.artifact_metadata(plane, images_full_name, images)
 
 
         # removed for now but this structure can be used for auxiliary measurement sets in future
@@ -194,7 +197,7 @@ class EmerlinMetadata:
         #     else:
         #         # may want to add try, except clause here when completed for robustness
         #         plane_id_full = self.storage_name + '/weblog/calib/' + directory + '/'
-        #         self.measurement_set_metadata(observation, plane_id_full, pickle_obj)
+        #         self.measurement_set_metadata(observation, obs_id, plane_id_full, pickle_obj)
 
         # structure of observation outside of functions?
         xml_output_name = self.xml_out_dir + obs_id + '.xml'
