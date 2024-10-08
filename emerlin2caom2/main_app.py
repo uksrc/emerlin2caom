@@ -4,17 +4,26 @@ import subprocess
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
     ReleaseType, ObservationWriter, ProductType, ChecksumURI, Provenance, Position, Point, Energy, TargetPosition, \
-    Interval, TypedSet, Polarization, shape, Proposal
+    Interval, TypedSet, Polarization, shape, Proposal, Instrument
 from pkg_resources import Environment
 
 import casa_reader as casa
 import measurement_set_metadata as msmd
 import fits_reader as fr
-import settings_file as set
+import settings_file as set_f
+import math
 
 __all__ = [
     'EmerlinMetadata',
 ]
+
+
+def polar2cart(r, theta, phi):
+    x = r * math.sin(theta) * math.cos(phi)
+    y = r * math.sin(theta) * math.sin(phi)
+    z = r * math.cos(theta)
+    return {'x':x, 'y':y, 'z':z}
+
 
 class EmerlinMetadata:
     """
@@ -23,10 +32,10 @@ class EmerlinMetadata:
     :param xml_out_dir: Location for writing the output XML
     :returns: Name of the output xml, id for the observation in the xml file
     """
-    storage_name = set.storage_name
-    rootca = set.rootca
-    xml_out_dir = set.xmldir
-    ska_token = set.ska_token
+    storage_name = set_f.storage_name
+    # rootca = set.rootca
+    xml_out_dir = set_f.xmldir
+    # ska_token = set.ska_token
 
     def basename(self, name):
         """
@@ -144,17 +153,36 @@ class EmerlinMetadata:
 
         obs_id = self.basename(self.storage_name)
 
-        observation = SimpleObservation('EMERLIN', obs_id)
+        observation = SimpleObservation('EMERLIN', '{}_{}'.format(obs_id, ante_id))
         observation.obs_type = 'science'
         observation.intent = ObservationIntentType.SCIENCE
 
+
+        target_name = pickle_obj['msinfo']['sources']['targets']#
+        target_pos = pickle_obj['msinfo']['directions'][target_name]
         observation.target = Target('TBD')
-        target_name = pickle_obj['msinfo']['sources']['targets']
         observation.target.name = target_name
+        observation.targetposition = TargetPosition()
+        observation.targetposition = target_pos
 
         observation.telescope = Telescope(casa_info['tel_name'][0])
-        observation.proposal = Proposal(casa_info)
+        observation.proposal = Proposal(casa_info['prop_id'])
+        if isinstance(ante_id, int):
+            cart_coords = polar2cart(casa_info['ante_pos'][ante_id]['m0']['value'],
+                                     casa_info['ante_pos'][ante_id]['m1']['value'],
+                                     casa_info['ante_pos'][ante_id]['m2']['value'])
 
+            instrument_name = casa_info['antennas'][ante_id]
+        else:
+            cart_coords = polar2cart(casa_info['obs_pos'][ante_id]['m0']['value'],
+                                     casa_info['obs_pos'][ante_id]['m1']['value'],
+                                     casa_info['obs_pos'][ante_id]['m2']['value'])
+            instrument_name = 'lv'
+            
+        observation.telescope.geoLocationX = cart_coords['x']
+        observation.telescope.geoLocationY = cart_coords['y']
+        observation.telescope.geoLocationZ = cart_coords['z']
+        observation.instrument = Instrument()
         # geolocation of telescope is stated in terms of observatory and then offsets from that place?
         # if so, are there then 7 telescopes, the six "antenna" and the observatory? Would make some sense
         # honestly, I need more info though

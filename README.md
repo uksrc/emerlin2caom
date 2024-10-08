@@ -48,7 +48,7 @@ Creating a conda environment to test the commands
 ```
 conda create -n emerlin2caom python=3.7.6
 conda activate emerlin2caom
-pip install astropy
+pip install astropy=4.5.1
 pip install casatools
 pip install checksumdir
 pip install caom2 --ignore-requires-python

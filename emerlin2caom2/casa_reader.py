@@ -29,7 +29,7 @@ def msmd_collect(ms_file):
         'tel_name': msmd.observatorynames(),
         'antennas': msmd.antennanames(),
         'ante_off': [msmd.antennaoffset(x) for x in antenna_ids],
-        'ante_pos': [msmd.antenna_positions(x) for x in antenna_ids],
+        'ante_pos': [msmd.antennaposition(x) for x in antenna_ids],
         'obs_pos' : msmd.observatoryposition(),
         'wl_upper': msmd.chanfreqs(0)[0],
         'wl_lower': msmd.chanfreqs(nspw-1)[-1],
