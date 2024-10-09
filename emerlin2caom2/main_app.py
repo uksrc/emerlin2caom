@@ -1,6 +1,7 @@
 import pickle
 import os
 import subprocess
+from os.path import basename
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
     ReleaseType, ObservationWriter, ProductType, ChecksumURI, Provenance, Position, Point, Energy, TargetPosition, \
@@ -13,7 +14,26 @@ import settings_file as set
 
 __all__ = [
     'EmerlinMetadata',
+    'emcp2dict'
 ]
+
+def emcp2dict(emcp_file):
+    '''
+    Convert the plain text version of the pickle file to a python dictionary. Using this rather than the pickle file
+    removes the constraints of having the same or great version of python packages such as astropy. It is however, not
+    as robust. There may be issues in future with conflicting names as I have flattened one layer of structure.
+    :param emcp_file: name of pickle file to be read in. x
+    :returns: dictionary version of input file
+    '''
+    with open(emcp_file) as file:
+        lines = [line.rstrip() for line in file]
+    pickle_dict = {}
+    for line in lines:
+        line_no_space = "".join(line.split())
+        if ':' in line_no_space:
+            nested_list = line_no_space.split(':')
+            pickle_dict[nested_list[0]] = nested_list[1]
+    return pickle_dict
 
 class EmerlinMetadata:
     """
@@ -23,9 +43,9 @@ class EmerlinMetadata:
     :returns: Name of the output xml, id for the observation in the xml file
     """
     storage_name = set.storage_name
-    rootca = set.rootca
+    # rootca = set.rootca
     xml_out_dir = set.xmldir
-    ska_token = set.ska_token
+    # ska_token = set.ska_token
 
     def basename(self, name):
         """
@@ -33,7 +53,12 @@ class EmerlinMetadata:
         :param name: Full path to directory
         :returns: Name of the directory, without path
         """
-        base_name = name.split('/')[-1]
+        if name[-1] == '/':
+            name = name[:-1]
+        if '/' not in name:
+            base_name = name
+        else:
+            base_name = name.split('/')[-1]
         return base_name
 
     def artifact_metadata(self, plane, artifact_full_name, plots):
@@ -80,7 +105,7 @@ class EmerlinMetadata:
         return plane
 
 
-    def measurement_set_metadata(self, observation, obs_id, ms_dir, pickle_file):
+    def measurement_set_metadata(self, observation, obs_id, ms_dir, pickle_dict):
         '''
         Creates metadata for measurement sets, extracting infomation from the ms itself, as well as the pickle file
         :param observation:  Class to add metadata to
@@ -117,11 +142,12 @@ class EmerlinMetadata:
         # plane.polarization.polarization_states = pol_states
 
         # provenance = Provenance(self.basename(pickle_obj['pipeline_path']))
-        provenance = Provenance(self.basename(pickle_obj['pipeline_path']))
+        provenance = Provenance(pickle_dict['pipeline_path'])
         plane.provenance = provenance
-        provenance.version = pickle_obj['pipeline_version']
+        # provenance.version = pickle_obj['pipeline_version']
+        provenance.version = pickle_dict['pipeline_version']
         provenance.project = msmd_dict['project']
-        provenance.runID = obs_id
+        provenance.runID = pickle_dict['run']
 
         plane.artifacts = TypedOrderedDict(Artifact)
 
@@ -147,10 +173,8 @@ class EmerlinMetadata:
         '''
         obs_id = self.basename(self.storage_name)
         ms_dir = self.storage_name + '/{}_avg.ms'.format(obs_id) # maybe flimsy? depends on the rigidity of the em pipeline
-        pickle_file = self.storage_name + '/weblog/info/eMCP_info.pkl'
-        with open(pickle_file, 'rb') as f:
-            pickle_obj = pickle.load(f)
-
+        pickle_file = self.storage_name + '/weblog/info/eMCP_info.txt'
+        pickle_obj = emcp2dict(pickle_file)
         casa_info = casa.msmd_collect(ms_dir)
 
         observation = SimpleObservation('EMERLIN', obs_id)
@@ -159,12 +183,11 @@ class EmerlinMetadata:
 
         observation.target = Target('TBD')
         # target_name = pickle_obj['msinfo']['sources']['targets']
-        target_name = casa_info
+        target_name = pickle_obj['targets']
         observation.target.name = target_name
         # this needs correcting so that the data format is correct, unsure what it wants right now
         # observation.target.position = TargetPosition(str(casa.find_mssources(ms_dir)), 'J2000')
         observation.telescope = Telescope(casa_info['tel_name'][0])
-        # observation.telescope = Telescope('EMERLIN')
         observation.planes = TypedOrderedDict(Plane)
 
         plane = self.measurement_set_metadata(observation, obs_id, ms_dir, pickle_obj)
@@ -176,11 +199,10 @@ class EmerlinMetadata:
 
         for directory in os.listdir(self.storage_name + '/weblog/images/'):
             main_fits = [x for x in os.listdir(self.storage_name + '/weblog/images/' + directory + '/') if x.endswith('-image.fits')]
-            plane_id_full = self.storage_name + '/weblog/images/' + directory + '/'
-            plane = self.fits_plane_metadata(observation, plane_id_full, main_fits[0])
-
              # will this break?
             if len(main_fits) > 0:
+                plane_id_full = self.storage_name + '/weblog/images/' + directory + '/'
+                plane = self.fits_plane_metadata(observation, plane_id_full, main_fits[0])
                 for images in os.listdir(self.storage_name + '/weblog/images/' + directory + '/'):
                     images_full_name = self.storage_name + '/weblog/images/' + directory + '/' + images
                     self.artifact_metadata(plane, images_full_name, images)
