@@ -1,219 +1,234 @@
-# ***********************************************************************
-# ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
-# *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
-#
-#  (c) 2023.                            (c) 2023.
-#  Government of Canada                 Gouvernement du Canada
-#  National Research Council            Conseil national de recherches
-#  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
-#  All rights reserved                  Tous droits réservés
-#
-#  NRC disclaims any warranties,        Le CNRC dénie toute garantie
-#  expressed, implied, or               énoncée, implicite ou légale,
-#  statutory, of any kind with          de quelque nature que ce
-#  respect to the software,             soit, concernant le logiciel,
-#  including without limitation         y compris sans restriction
-#  any warranty of merchantability      toute garantie de valeur
-#  or fitness for a particular          marchande ou de pertinence
-#  purpose. NRC shall not be            pour un usage particulier.
-#  liable in any event for any          Le CNRC ne pourra en aucun cas
-#  damages, whether direct or           être tenu responsable de tout
-#  indirect, special or general,        dommage, direct ou indirect,
-#  consequential or incidental,         particulier ou général,
-#  arising from the use of the          accessoire ou fortuit, résultant
-#  software.  Neither the name          de l'utilisation du logiciel. Ni
-#  of the National Research             le nom du Conseil National de
-#  Council of Canada nor the            Recherches du Canada ni les noms
-#  names of its contributors may        de ses  participants ne peuvent
-#  be used to endorse or promote        être utilisés pour approuver ou
-#  products derived from this           promouvoir les produits dérivés
-#  software without specific prior      de ce logiciel sans autorisation
-#  written permission.                  préalable et particulière
-#                                       par écrit.
-#
-#  This file is part of the             Ce fichier fait partie du projet
-#  OpenCADC project.                    OpenCADC.
-#
-#  OpenCADC is free software:           OpenCADC est un logiciel libre ;
-#  you can redistribute it and/or       vous pouvez le redistribuer ou le
-#  modify it under the terms of         modifier suivant les termes de
-#  the GNU Affero General Public        la “GNU Affero General Public
-#  License as published by the          License” telle que publiée
-#  Free Software Foundation,            par la Free Software Foundation
-#  either version 3 of the              : soit la version 3 de cette
-#  License, or (at your option)         licence, soit (à votre gré)
-#  any later version.                   toute version ultérieure.
-#
-#  OpenCADC is distributed in the       OpenCADC est distribué
-#  hope that it will be useful,         dans l’espoir qu’il vous
-#  but WITHOUT ANY WARRANTY;            sera utile, mais SANS AUCUNE
-#  without even the implied             GARANTIE : sans même la garantie
-#  warranty of MERCHANTABILITY          implicite de COMMERCIALISABILITÉ
-#  or FITNESS FOR A PARTICULAR          ni d’ADÉQUATION À UN OBJECTIF
-#  PURPOSE.  See the GNU Affero         PARTICULIER. Consultez la Licence
-#  General Public License for           Générale Publique GNU Affero
-#  more details.                        pour plus de détails.
-#
-#  You should have received             Vous devriez avoir reçu une
-#  a copy of the GNU Affero             copie de la Licence Générale
-#  General Public License along         Publique GNU Affero avec
-#  with OpenCADC.  If not, see          OpenCADC ; si ce n’est
-#  <http://www.gnu.org/licenses/>.      pas le cas, consultez :
-#                                       <http://www.gnu.org/licenses/>.
-#
-#  $Revision: 4 $
-#
-# ***********************************************************************
-#
-
-"""
-This module implements the ObsBlueprint mapping, as well as the workflow 
-entry point that executes the workflow.
-"""
-
+import pickle
 import os
 import subprocess
+from os.path import basename
 
-from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, Energy, \
-    EnergyBand, Interval, ReleaseType, ObservationWriter, ProductType, ChecksumURI, \
-    DataProductType, CalibrationLevel, Chunk, TypedList, TypedSet, Polarization
+from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
+    ReleaseType, ObservationWriter, ProductType, ChecksumURI, Provenance, Position, Point, Energy, TargetPosition, \
+    Interval, TypedSet, Polarization, shape
 
 import casa_reader as casa
 import measurement_set_metadata as msmd
+import fits_reader as fr
+import settings_file as set
 
 __all__ = [
-    'basename',
-    'create_observation',
-    'upload_xml',
-    'emerlin_main_app'
+    'EmerlinMetadata',
+    'emcp2dict'
 ]
 
+def emcp2dict(emcp_file):
+    '''
+    Convert the plain text version of the pickle file to a python dictionary. Using this rather than the pickle file
+    removes the constraints of having the same or great version of python packages such as astropy. It is however, not
+    as robust. There may be issues in future with conflicting names as I have flattened one layer of structure.
+    :param emcp_file: name of pickle file to be read in. x
+    :returns: dictionary version of input file
+    '''
+    with open(emcp_file) as file:
+        lines = [line.rstrip() for line in file]
+    pickle_dict = {}
+    for line in lines:
+        line_no_space = "".join(line.split())
+        if ':' in line_no_space:
+            nested_list = line_no_space.split(':')
+            pickle_dict[nested_list[0]] = nested_list[1]
+    return pickle_dict
 
-def basename(name):
-    """
-    Adaptation of os.basename for use with directories, instead of files
-    :param name: Full path to directory
-    :returns: Name of the directory, without path
-    """
-    base_name = os.path.dirname(name).split('/')[-1]
-    return base_name
-
-
-def create_observation(storage_name, xml_out_dir):
+class EmerlinMetadata:
     """
     Populates an XML document with caom format metadata, extracted from an input measurement set.
     :param storage_name: Name of measurement set
     :param xml_out_dir: Location for writing the output XML
     :returns: Name of the output xml, id for the observation in the xml file
     """
-    obs_id = basename(storage_name)
-    observation = SimpleObservation('collection', obs_id)
-    observation.obs_type = 'science'
-    observation.intent = ObservationIntentType.SCIENCE
+    storage_name = set.storage_name
+    # rootca = set.rootca
+    xml_out_dir = set.xmldir
+    # ska_token = set.ska_token
 
-    # Collect measurement set metadata via casa tools into py dictionary \
-    # for all casatools.msmetadata opens
-    msmd_dict = casa.msmd_collect(storage_name)
+    def basename(self, name):
+        """
+        Adaptation of os.basename for use with directories, instead of files
+        :param name: Full path to directory
+        :returns: Name of the directory, without path
+        """
+        if name[-1] == '/':
+            name = name[:-1]
+        if '/' not in name:
+            base_name = name
+        else:
+            base_name = name.split('/')[-1]
+        return base_name
 
-    observation.target = Target('TBD')
-    observation.target.keywords = set(msmd_dict["mssources"])
-    # observation.target.position = TargetPosition(str(find_mssources(ms_file)), 'J2000')
+    def artifact_metadata(self, plane, artifact_full_name, plots):
+        '''
+        Creates metadata for physical artifacts, including type, size and hash value
+        :param plane: plane to add arrtifact metadata to
+        :param artifact_full_name: full location of target object
+        :param plots: name of artifact only, no path
+        '''
+        # plot_full_name = storage_name + '/weblog/plots/' + directory + '/' + plots
+        artifact = Artifact('uri:{}'.format(plots), ProductType.AUXILIARY, ReleaseType.META)
+        plane.artifacts['uri:{}'.format(plots)] = artifact
+        meta_data = msmd.get_local_file_info(artifact_full_name)
 
-    observation.telescope = Telescope(msmd_dict["tel_name"][0])
-    observation.telescope.keywords = set(msmd_dict["antennas"])
+        artifact.content_type = meta_data.file_type
+        artifact.content_length = meta_data.size
+        artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
 
-    observation.planes = TypedOrderedDict(Plane)
-    plane = Plane(obs_id)
-    observation.planes[obs_id] = plane
-    
-    # Plane product is a calibrated measurement set.
-    # DataProductType vocabulary does not include visibility yet.
-    # CAOM2.5 should include.  For now, comment out.
-    # plane.data_product_type = DataProductType.VISIBILITY
+    def fits_plane_metadata(self, observation, fits_full_name, images):
+        '''
+        Creates metadata for fits files, currently includes only basic information with scope to add more
+        :param observation: Class to add metadata to
+        :param fits_full_name: String format name and path to fits file
+        :param images: String name of fits file, no path
+        :returns: plane created for fits file to be passed to the artifact function
+        '''
+        # plane_id_full = storage_name + '/weblog/images/' + directory + '/'
+        plane = Plane(images)
+        observation.planes[images] = plane
+        fits_header_data = fr.header_extraction(fits_full_name + images)
 
-    # So far, all eMERLIN measurement sets have been calibrated.
-    # If raw, then it is in fits.idi format, not ms.
-    # If we are including images/plots, then we need to change this.
-    plane.calibration_level = CalibrationLevel.CALIBRATED    
+        position = Position()
+        plane.position = position
+        plane.position.shape = Point(fits_header_data['ra_deg'], fits_header_data['dec_deg'])
 
-    # Make an Energy object for this Plane
-    plane.energy = Energy()
-   
-    # Assign Energy object metadata
-    plane.energy.bounds = Interval(msmd_dict["wl_lower"], msmd_dict["wl_upper"])
-    plane.energy.bandpass_name = str(msmd_dict["bp_name"])
-    
-    # These don't break anything but also aren't printed to xml. 
-    # Waiting on patch for obs_reader_writer.py
-    plane.energy.energy_bands = TypedSet('Radio')
+        energy = Energy()
+        plane.energy = energy
+        plane.energy.restwav = fits_header_data['central_freq']  # change freq to wav and check against model
 
-    plane.polarization = Polarization()
-    # See if polarization will go in for Plane. 
-    pol_states, dim = casa.get_polar(storage_name)
-    plane.polarization.dimension = int(dim)
-    
-    # This one isn't working quite right yet-- see obs_reader_writer.py
-    #plane.polarization.polarization_states = pol_states
+        provenance = Provenance(images)
+        plane.provenance = provenance
+        provenance.version = fits_header_data['wsc_version']
 
-    # Artifact section. Why is is uri:foo/bar here?
-    plane.artifacts = TypedOrderedDict(Artifact)
-    artifact = Artifact('uri:foo/bar', ProductType.SCIENCE, ReleaseType.META)
-    plane.artifacts['uri:foo/bar'] = artifact
-
-    meta_data = msmd.get_local_file_info(storage_name)
-
-    artifact.content_type = meta_data.file_type
-    artifact.content_length = meta_data.size
-    artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
-
-    # XML output section
-    xml_output_name = xml_out_dir + obs_id + '.xml'
-
-    writer = ObservationWriter()
-    writer.write(observation, xml_output_name)
-
-    return xml_output_name, obs_id
-
-def upload_xml(xml_output_name, observation_id, rootca_cert, repo_url_base='https://src-data-repo.co.uk/torkeep/',
-               collection='EMERLIN'):
-    """
-    Upload the xml file to the repository, not functional with current setup
-    """
-    if rootca_cert is None:
-        put_command = ['curl', '-X', 'PUT', '-T', xml_output_name,
-                       repo_url_base+collection+'/'+observation_id]
-        post_command = ['curl', '-X', 'POST', '-T', xml_output_name,
-                        repo_url_base+collection+'/'+observation_id]
-    else:
-        put_command = ['curl', '-ca', '"'+rootca_cert+'"', '-X', 'PUT', '-T', xml_output_name,
-                       repo_url_base+collection+'/'+observation_id]
-        post_command = ['curl', '-ca', '"'+rootca_cert+'"', '-X', 'POST', '-T', xml_output_name,
-                        repo_url_base+collection+'/'+observation_id]
-    # print(put_command)
-    # print(post_command)
-    # subprocess.call(put_command)
-    try:
-        subprocess.call(put_command)  # method 405, not allowed
-    except subprocess.CalledProcessError:
-        subprocess.call(post_command)
+        return plane
 
 
-def emerlin_main_app(storage_name, rootca=None, xml_dir='.'):
-    """
-    Create XML and upload to repo
-    :param storage_name: Name of measurement set
-    :param rootca: loaction of rootca.pem
-    :param xml_dir: directory for storage of xml output
-    """
-    xml_output_file, obs_id = create_observation(storage_name, xml_dir)
-    #upload_xml(xml_output_file, obs_id, rootca)
-    # add something like this for logging later
-    # try:
-    #     result = to_caom2()
-    #     sys.exit(result)
-    # except Exception as e:
-    #     logging.error(
-    #         f'Failed {APPLICATION} execution for {args} with {str(e)}.')
-    #     tb = traceback.format_exc()
-    #     logging.error(tb)
-    #     sys.exit(-1)
+    def measurement_set_metadata(self, observation, obs_id, ms_dir, pickle_dict):
+        '''
+        Creates metadata for measurement sets, extracting infomation from the ms itself, as well as the pickle file
+        :param observation:  Class to add metadata to
+        :param ms_dir: string path and name of measurement set
+        :param pickle_obj: pickle object read in from file
+        :returns: Plane class where data was added
+        '''
+
+        print(ms_dir)
+        ms_name = self.basename(ms_dir)
+        msmd_dict = casa.msmd_collect(ms_dir)
+
+        plane = Plane(ms_name)
+        observation.planes[ms_name] = plane
+
+        # Make an Energy object for this Plane
+        plane.energy = Energy()
+
+        # Assign Energy object metadata
+        sample = shape.SubInterval(msmd_dict["wl_lower"], msmd_dict["wl_upper"])
+        plane.energy.bounds = Interval(msmd_dict["wl_lower"], msmd_dict["wl_upper"], samples=[sample])
+        plane.energy.bandpass_name = str(msmd_dict["bp_name"])
+
+        # These don't break anything but also aren't printed to xml.
+        # Waiting on patch for obs_reader_writer.py
+        plane.energy.energy_bands = TypedSet('Radio')
+
+        plane.polarization = Polarization()
+        # See if polarization will go in for Plane.
+        pol_states, dim = casa.get_polar(ms_dir)
+        plane.polarization.dimension = int(dim)
+
+        # This one isn't working quite right yet-- see obs_reader_writer.py
+        # plane.polarization.polarization_states = pol_states
+
+        # provenance = Provenance(self.basename(pickle_obj['pipeline_path']))
+        provenance = Provenance(pickle_dict['pipeline_path'])
+        plane.provenance = provenance
+        # provenance.version = pickle_obj['pipeline_version']
+        provenance.version = pickle_dict['pipeline_version']
+        provenance.project = msmd_dict['project']
+        provenance.runID = pickle_dict['run']
+
+        plane.artifacts = TypedOrderedDict(Artifact)
+
+        artifact = Artifact('uri:{}'.format(ms_name), ProductType.SCIENCE, ReleaseType.META)
+        plane.artifacts['uri:{}'.format(ms_name)] = artifact
+
+        meta_data = msmd.get_local_file_info(ms_dir)
+
+        artifact.content_type = meta_data.file_type
+        artifact.content_length = meta_data.size
+        artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
+
+        return plane
+        ### These components need their output value to be changed somewhat
+        # provenance.inputs = pickle_obj['inputs']['fits_path']
+        # provenance.keywords = str([key for key, value in pickle_obj['input_steps'].items() if value == 1])
+
+    def build_metadata(self):
+        '''
+        Builds metadata for emerlin pipeline output, including main and calibration measurment sets, fits images,
+        plots and pickle file metadata. The target measurment set and output destination are definied within the
+        settings_file.py.
+        '''
+        obs_id = self.basename(self.storage_name)
+        ms_dir = self.storage_name + '/{}_avg.ms'.format(obs_id) # maybe flimsy? depends on the rigidity of the em pipeline
+        pickle_file = self.storage_name + '/weblog/info/eMCP_info.txt'
+        pickle_obj = emcp2dict(pickle_file)
+        casa_info = casa.msmd_collect(ms_dir)
+
+        observation = SimpleObservation('EMERLIN', obs_id)
+        observation.obs_type = 'science'
+        observation.intent = ObservationIntentType.SCIENCE
+
+        observation.target = Target('TBD')
+        # target_name = pickle_obj['msinfo']['sources']['targets']
+        target_name = pickle_obj['targets']
+        observation.target.name = target_name
+        # this needs correcting so that the data format is correct, unsure what it wants right now
+        # observation.target.position = TargetPosition(str(casa.find_mssources(ms_dir)), 'J2000')
+        observation.telescope = Telescope(casa_info['tel_name'][0])
+        observation.planes = TypedOrderedDict(Plane)
+
+        plane = self.measurement_set_metadata(observation, obs_id, ms_dir, pickle_obj)
+
+        for directory in os.listdir(self.storage_name + '/weblog/plots/'):
+            for plots in os.listdir(self.storage_name + '/weblog/plots/' + directory + '/'):
+                plot_full_name = self.storage_name + '/weblog/plots/' + directory + '/' + plots
+                self.artifact_metadata(plane, plot_full_name, plots)
+
+        for directory in os.listdir(self.storage_name + '/weblog/images/'):
+            main_fits = [x for x in os.listdir(self.storage_name + '/weblog/images/' + directory + '/') if x.endswith('-image.fits')]
+             # will this break?
+            if len(main_fits) > 0:
+                plane_id_full = self.storage_name + '/weblog/images/' + directory + '/'
+                plane = self.fits_plane_metadata(observation, plane_id_full, main_fits[0])
+                for images in os.listdir(self.storage_name + '/weblog/images/' + directory + '/'):
+                    images_full_name = self.storage_name + '/weblog/images/' + directory + '/' + images
+                    self.artifact_metadata(plane, images_full_name, images)
+
+
+        # removed for now but this structure can be used for auxiliary measurement sets in future
+        # for directory in os.listdir(self.storage_name + '/weblog/calib/'):
+        #     extension = directory.split('.')[-1]
+        #     if extension in ['txt', 'pkl']:
+        #         pass
+        #     elif extension == 'png':
+        #         # do not know how to assign this ancillary data product to the proper plane
+        #         unprocessed_plots = [directory]
+        #     else:
+        #         # may want to add try, except clause here when completed for robustness
+        #         plane_id_full = self.storage_name + '/weblog/calib/' + directory + '/'
+        #         self.measurement_set_metadata(observation, obs_id, plane_id_full, pickle_obj)
+
+        # structure of observation outside of functions?
+        xml_output_name = self.xml_out_dir + obs_id + '.xml'
+
+        writer = ObservationWriter()
+        writer.write(observation, xml_output_name)
+
+
+
+
+
+

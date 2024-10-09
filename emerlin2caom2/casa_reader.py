@@ -1,8 +1,6 @@
 # This module extracts metadata from eMERLIN measurement sets via casa
 # -built operations.  When more table.open operations are added, it 
 # would be good to combine them all into one open.
-
-import numpy
 import casatools
 
 msmd = casatools.msmetadata()
@@ -17,8 +15,8 @@ def msmd_collect(ms_file):
     metadata
 
     """
-
     msmd.open(ms_file)
+
     nspw = msmd.nspw()
     msmd_elements = {
         'mssources': msmd.fieldnames(),
@@ -28,6 +26,7 @@ def msmd_collect(ms_file):
         'wl_lower': msmd.chanfreqs(nspw-1)[-1],
         'chan_res': msmd.chanwidths(0)[0],
         'nchan': len(msmd.chanwidths(0)),
+        'project': msmd.observers()[0]
     }
     msmd.close()
 
@@ -91,3 +90,4 @@ def get_scan_sum(ms_file):
     scan_sum = ms.getscansummary()
     ms.close()
     return scan_sum
+
