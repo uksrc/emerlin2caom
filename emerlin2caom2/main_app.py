@@ -156,7 +156,7 @@ class EmerlinMetadata:
         provenance = Provenance(pickle_dict['pipeline_path'])
         plane.provenance = provenance
         provenance.version = pickle_dict['pipeline_version']
-        provenance.project = msmd_dict['project']
+        provenance.project = msmd_dict['prop_id']
         provenance.runID = pickle_dict['run']
 
         plane.artifacts = TypedOrderedDict(Artifact)
@@ -194,29 +194,32 @@ class EmerlinMetadata:
 
         observation.telescope = Telescope(casa_info['tel_name'][0])
         observation.proposal = Proposal(casa_info['prop_id'])
-        if isinstance(ante_id, int):
+        if ante_id != 'lovell':
             cart_coords = polar2cart(casa_info['ante_pos'][ante_id]['m0']['value'],
                                      casa_info['ante_pos'][ante_id]['m1']['value'],
                                      casa_info['ante_pos'][ante_id]['m2']['value'])
 
             instrument_name = casa_info['antennas'][ante_id]
         else:
-            cart_coords = polar2cart(casa_info['obs_pos'][ante_id]['m0']['value'],
-                                     casa_info['obs_pos'][ante_id]['m1']['value'],
-                                     casa_info['obs_pos'][ante_id]['m2']['value'])
+            cart_coords = polar2cart(casa_info['obs_pos']['m0']['value'],
+                                     casa_info['obs_pos']['m1']['value'],
+                                     casa_info['obs_pos']['m2']['value'])
             instrument_name = 'lv'
-            
-        observation.telescope.geoLocationX = cart_coords['x']
-        observation.telescope.geoLocationY = cart_coords['y']
-        observation.telescope.geoLocationZ = cart_coords['z']
+
+        observation.telescope.geo_location_x = cart_coords['x']
+        observation.telescope.geo_location_y = cart_coords['y']
+        observation.telescope.geo_location_z = cart_coords['z']
         observation.instrument = Instrument(instrument_name)
-        # geolocation of telescope is stated in terms of observatory and then offsets from that place?
-        # if so, are there then 7 telescopes, the six "antenna" and the observatory? Would make some sense
-        # honestly, I need more info though
+
+        xml_output_name = self.xml_out_dir + obs_id + str(ante_id) + '.xml'
+        writer = ObservationWriter()
+        writer.write(observation, xml_output_name)
+
+        return observation
 
 
 
-    def build_derived_observation(self):
+    def build_metadata(self):
         '''
         Builds metadata for e-merlin pipeline output, including main and calibration measurement sets, fits images,
         plots and pickle file metadata. The target measurement set and output destination are defined within the
@@ -224,12 +227,19 @@ class EmerlinMetadata:
         '''
         obs_id = self.basename(self.storage_name)
         ms_dir = self.storage_name + '/{}_avg.ms'.format(obs_id) # maybe flimsy? depends on the rigidity of the em pipeline
-        pickle_file = self.storage_name + '/weblog/info/eMCP_info.pkl'
+        pickle_file = self.storage_name + '/weblog/info/eMCP_info.txt'
         pickle_obj = emcp2dict(pickle_file)
 
         casa_info = casa.msmd_collect(ms_dir)
+        observation = DerivedObservation('EMERLIN', obs_id, 'correlator')
 
-        observation = DerivedObservation('EMERLIN', obs_id)
+        for tele in range(len(casa_info['antennas'])):
+            simple_observation = self.build_simple_observation(casa_info, pickle_obj, tele)
+            observation.members.add(simple_observation.get_uri())
+
+        simple_observation = self.build_simple_observation(casa_info, pickle_obj, 'lovell')
+        observation.members.add(simple_observation.get_uri())
+
         observation.obs_type = 'science'
         observation.intent = ObservationIntentType.SCIENCE
 
