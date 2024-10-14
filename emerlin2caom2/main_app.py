@@ -117,9 +117,14 @@ class EmerlinMetadata:
         print(ms_dir)
         ms_name = self.basename(ms_dir)
         msmd_dict = casa.msmd_collect(ms_dir)
+        
+        ms_other = casa.ms_other_collect(ms_dir)     
 
         plane = Plane(ms_name)
         observation.planes[ms_name] = plane
+
+        #Release date
+        plane.data_release = casa.ms_other["rel_date"]
 
         # Make an Energy object for this Plane
         plane.energy = Energy()
@@ -129,17 +134,17 @@ class EmerlinMetadata:
         plane.energy.bounds = Interval(msmd_dict["wl_lower"], msmd_dict["wl_upper"], samples=[sample])
         plane.energy.bandpass_name = str(msmd_dict["bp_name"])
 
-        # These don't break anything but also aren't printed to xml.
-        # Waiting on patch for obs_reader_writer.py
+        # This doesn't break anything but also isn't printed to xml. caom2.5?
         plane.energy.energy_bands = TypedSet('Radio')
 
-        plane.polarization = Polarization()
-        # See if polarization will go in for Plane.
-        pol_states, dim = casa.get_polar(ms_dir)
-        plane.polarization.dimension = int(dim)
+        # Plane Time Object
+        plane.time = Time()
+        
 
-        # This one isn't working quite right yet-- see obs_reader_writer.py
-        # plane.polarization.polarization_states = pol_states
+        plane.polarization = Polarization()
+        #pol_states, dim = casa.get_polar(ms_dir)
+        
+        plane.polarization.dimension = int(casa.ms_other["polar_dim"])
 
         # provenance = Provenance(self.basename(pickle_obj['pipeline_path']))
         provenance = Provenance(pickle_dict['pipeline_path'])
@@ -176,6 +181,7 @@ class EmerlinMetadata:
         pickle_file = self.storage_name + '/weblog/info/eMCP_info.txt'
         pickle_obj = emcp2dict(pickle_file)
         casa_info = casa.msmd_collect(ms_dir)
+        casa_other = casa.ms_other_collect(ms_dir)
 
         observation = SimpleObservation('EMERLIN', obs_id)
         observation.obs_type = 'science'
@@ -185,9 +191,13 @@ class EmerlinMetadata:
         # target_name = pickle_obj['msinfo']['sources']['targets']
         target_name = pickle_obj['targets']
         observation.target.name = target_name
-        # this needs correcting so that the data format is correct, unsure what it wants right now
+        # TO ADD: Collect primary target name from splits file in ms. 
         # observation.target.position = TargetPosition(str(casa.find_mssources(ms_dir)), 'J2000')
         observation.telescope = Telescope(casa_info['tel_name'][0])
+        observation.telescope.geo_location_x = casa_info['geoloc_x']
+        observation.telescope.geo_location_y = casa_info['geoloc_y']
+        observation.telescope.geo_location_z = casa_info['geoloc_z']
+
         observation.planes = TypedOrderedDict(Plane)
 
         plane = self.measurement_set_metadata(observation, obs_id, ms_dir, pickle_obj)

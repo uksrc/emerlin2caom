@@ -30,18 +30,46 @@ def msmd_collect(ms_file):
     }
     msmd.close()
 
+    nice_order = ['Lo', 'Mk2', 'Pi', 'Da', 'Kn', 'De', 'Cm']
+    refant = [a for a in nice_order if a in msmd_elements['antennas']]
+    geo = msmd.antennaposition(refant[0])
+    msmd.close()
+
     # Dictionary of changes
     elements_convert = {
         'wl_upper': freq2wl(msmd_elements['wl_upper']),
         'wl_lower': freq2wl(msmd_elements['wl_lower']),
         'chan_res': msmd_elements['chan_res']/1e9,
-        'bp_name': emerlin_band(msmd_elements['wl_upper'])
+        'bp_name': emerlin_band(msmd_elements['wl_upper']),
+        'geoloc_x': geo["m0"]["value"],
+        'geoloc_y': geo["m1"]["value"],
+        'geoloc_z': geo["m2"]["value"]
     }
 
     # Update dictionary with converted values and additions.
     msmd_elements.update(elements_convert)
 
     return msmd_elements
+
+def ms_other_collect(ms_file):
+    """
+    Consolidate non-msmd-type opens to a second dictionary?
+    param ms_file: Input measurement set
+    returns ms_other_elements: dictionary of non-msmd-retrievable elements \
+                               which need various table/col combinations.
+    """
+
+    ms_other_elements = {
+        'data_release': get_release_date(ms_file),
+        'obs_start_time': get_obstime(ms_file)[0],
+        'obs_stop_time': get_obstime(ms_file)[1],
+        'polar_dim': get_polar(ms_file)[2]
+    }
+
+    return ms_other_elements
+
+
+# Enabler-functions for above dictionaries 
 
 def emerlin_band(freq):
     """
@@ -90,4 +118,30 @@ def get_scan_sum(ms_file):
     scan_sum = ms.getscansummary()
     ms.close()
     return scan_sum
+
+def get_release_date(ms_file):
+    """
+    Retrieve data release date (not metadata release date) in mjd sec.
+    :param ms_file: Name of measurement set
+    :returns rel_date: date in mjd seconds... which is what caom wants.
+    """
+    tb.open(ms_file+'/OBSERVATION')
+    rel_date = tb.getcol('RELEASE_DATE')
+    tb.close()
+    return rel_date
+
+def get_obstime(ms_file):
+    """
+    Retrieve start and end time of total observation in mjd seconds.
+    :param ms_file: Name of measurement set
+    :returns t_ini, t_end: datetimes initial (or start time), \
+                           and Time End (finish time) in mjd sec
+    """
+    ms.open(ms_file)
+    t = ms.getdata('TIME')['time']
+    t_ini = numpy.min(t)
+    t_end = numpy.max(t)
+    ms.close()
+    return t_ini, t_end
+
 
