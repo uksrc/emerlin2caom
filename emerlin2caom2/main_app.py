@@ -103,7 +103,13 @@ class EmerlinMetadata:
 
         position = Position()
         plane.position = position
-        plane.position.shape = Point(fits_header_data['ra_deg'], fits_header_data['dec_deg'])
+        centre = Point(fits_header_data['ra_deg'], fits_header_data['dec_deg'])
+        width = abs(fits_header_data['pix_width'] * fits_header_data['pix_width_scale'])
+        height = abs(fits_header_data['pix_length'] * fits_header_data['pix_length_scale'])
+        radius = 0.5 * width
+        # plane.position.bounds = shape.Box(centre, radius)
+        plane.position.bounds = shape.Circle(centre, radius)
+        # should be box but is unsupported by the writer
 
         energy = Energy()
         plane.energy = energy
@@ -157,7 +163,7 @@ class EmerlinMetadata:
         plane.provenance = provenance
         provenance.version = pickle_dict['pipeline_version']
         provenance.project = msmd_dict['prop_id']
-        provenance.runID = pickle_dict['run']
+        provenance.run_id = pickle_dict['run']
 
         plane.artifacts = TypedOrderedDict(Artifact)
 
