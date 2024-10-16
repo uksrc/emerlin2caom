@@ -4,7 +4,7 @@ import sys
 
 from ast import literal_eval
 import configparser
-
+import settings_file as set
 
 logger = logging.getLogger('logger')
 
@@ -31,7 +31,7 @@ def read_inputs(inputs_file):
     return config['inputs']
 
 
-conf_file = '/home/h14471mj/e-merlin/casa6_docker/prod/TS8004_C_001_20190801/inputs.ini'
+conf_file = set.inputs_ini
 
 inputs = read_inputs(conf_file)
 print(inputs)
