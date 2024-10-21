@@ -97,6 +97,7 @@ class EmerlinMetadata:
         :param images: String name of fits file, no path
         :returns: plane created for fits file to be passed to the artifact function
         '''
+
         plane = Plane(images)
         observation.planes[images] = plane
         fits_header_data = fr.header_extraction(fits_full_name + images)
@@ -109,7 +110,7 @@ class EmerlinMetadata:
         radius = 0.5 * width
         # plane.position.bounds = shape.Box(centre, radius)
         plane.position.bounds = shape.Circle(centre, radius)
-        # should be box but is unsupported by the writer
+        # should be box but is unsupported by the writer, neither is point
 
         energy = Energy()
         plane.energy = energy
@@ -217,7 +218,7 @@ class EmerlinMetadata:
         observation.telescope.geo_location_z = cart_coords['z']
         observation.instrument = Instrument(instrument_name)
 
-        xml_output_name = self.xml_out_dir + obs_id + str(ante_id) + '.xml'
+        xml_output_name = self.xml_out_dir + obs_id + '_' + str(ante_id) + '.xml'
         writer = ObservationWriter()
         writer.write(observation, xml_output_name)
 
