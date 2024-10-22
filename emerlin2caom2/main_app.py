@@ -43,8 +43,35 @@ def emcp2dict(emcp_file):
         if ':' in line_no_space:
             nested_list = line_no_space.split(':')
             pickle_dict[nested_list[0]] = nested_list[1]
+    pickle_dict['target_position'] = target_position(emcp_file, pickle_dict['targets'])
     return pickle_dict
 
+
+def target_position(emcp_file, target):
+    """
+    Get the target position from the text version of the eMCP file. The pickle file would be better but will require
+    new python versions and packages for each version of the e-merlin pipeline. It would also be better to extract this
+    info from the measurement set but there is no indication on which observed object is the target. So this will do.
+    :param emcp_file: path to emcp.txt file
+    :param target: name of target from pickle file
+    :returns: list of ra,dec in degrees
+    """
+    with open(emcp_file) as file:
+        lines = [line.rstrip() for line in file]
+    gate = 0
+    pos_num = [0,0] # here so everything does not break if this does
+    for line in lines:
+        if gate == 1:
+            to_remove = ['(', ')', '>']
+            pos_str = ''.join([c for c in line if c not in to_remove]).strip()
+            positions = pos_str.split(', ')
+            pos_num = [float(x) for x in positions]
+            gate += 1
+        if target in line and '<SkyCoord (ICRS): (ra, dec) in deg' in line:
+            print(line)
+            gate += 1
+
+    return pos_num
 
 class EmerlinMetadata:
     """
@@ -192,12 +219,14 @@ class EmerlinMetadata:
         observation.intent = ObservationIntentType.SCIENCE
 
 
-        target_name = pickle_dict['targets']#
-        # target_pos = pickle_dict[target_name] needs updating
+        target_name = pickle_dict['targets']
+        target_pos = pickle_dict['target_position']
+        point = Point(target_pos[0], target_pos[1])
+
         observation.target = Target('TBD')
         observation.target.name = target_name
-        # observation.targetposition = TargetPosition()
-        # observation.targetposition = target_pos
+        observation.target_position = TargetPosition(point, 'coordsys') # J2000?
+
 
         observation.telescope = Telescope(casa_info['tel_name'][0])
         observation.proposal = Proposal(casa_info['prop_id'])
@@ -252,9 +281,11 @@ class EmerlinMetadata:
 
         observation.target = Target('TBD')
         target_name = pickle_obj['targets']
+        target_pos = pickle_obj['target_position']
+        point = Point(target_pos[0], target_pos[1])
+
         observation.target.name = target_name
-        # this needs correcting so that the data format is correct, unsure what it wants right now
-        # observation.target.position = TargetPosition(str(casa.find_mssources(ms_dir)), 'J2000')
+        observation.target_position = TargetPosition(point, 'coordsys')  # J2000?
         observation.telescope = Telescope(casa_info['tel_name'][0])
         observation.planes = TypedOrderedDict(Plane)
 
