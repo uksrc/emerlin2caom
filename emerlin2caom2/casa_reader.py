@@ -2,6 +2,8 @@
 # -built operations.  When more table.open operations are added, it 
 # would be good to combine them all into one open.
 import casatools
+import numpy
+import datetime
 
 msmd = casatools.msmetadata()
 ms = casatools.ms()
@@ -28,7 +30,6 @@ def msmd_collect(ms_file):
         'nchan': len(msmd.chanwidths(0)),
         'project': msmd.observers()[0]
     }
-    msmd.close()
 
     nice_order = ['Lo', 'Mk2', 'Pi', 'Da', 'Kn', 'De', 'Cm']
     refant = [a for a in nice_order if a in msmd_elements['antennas']]
@@ -63,7 +64,7 @@ def ms_other_collect(ms_file):
         'data_release': get_release_date(ms_file),
         'obs_start_time': get_obstime(ms_file)[0],
         'obs_stop_time': get_obstime(ms_file)[1],
-        'polar_dim': get_polar(ms_file)[2]
+        'polar_dim': get_polar(ms_file)[1]
     }
 
     return ms_other_elements
@@ -121,14 +122,21 @@ def get_scan_sum(ms_file):
 
 def get_release_date(ms_file):
     """
+    To do convert to ivoa:datetime
     Retrieve data release date (not metadata release date) in mjd sec.
     :param ms_file: Name of measurement set
     :returns rel_date: date in mjd seconds... which is what caom wants.
     """
     tb.open(ms_file+'/OBSERVATION')
-    rel_date = tb.getcol('RELEASE_DATE')
+    rel_date = mjdtodate(tb.getcol('RELEASE_DATE')[0]/60./60./24.)
     tb.close()
     return rel_date
+
+def mjdtodate(mjd):
+    origin = datetime.datetime(1858,11,17)
+    date = origin + datetime.timedelta(mjd)
+    return date
+
 
 def get_obstime(ms_file):
     """

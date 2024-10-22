@@ -5,7 +5,7 @@ from os.path import basename
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
     ReleaseType, ObservationWriter, ProductType, ChecksumURI, Provenance, Position, Point, Energy, TargetPosition, \
-    Interval, TypedSet, Polarization, shape
+    Interval, TypedSet, Polarization, shape, Time 
 
 import casa_reader as casa
 import measurement_set_metadata as msmd
@@ -123,8 +123,8 @@ class EmerlinMetadata:
         plane = Plane(ms_name)
         observation.planes[ms_name] = plane
 
-        #Release date
-        plane.data_release = casa.ms_other["rel_date"]
+        #Release date to-do convert to ivoa:datetime
+        plane.data_release = ms_other["data_release"]
 
         # Make an Energy object for this Plane
         plane.energy = Energy()
@@ -144,7 +144,7 @@ class EmerlinMetadata:
         plane.polarization = Polarization()
         #pol_states, dim = casa.get_polar(ms_dir)
         
-        plane.polarization.dimension = int(casa.ms_other["polar_dim"])
+        plane.polarization.dimension = int(ms_other["polar_dim"])
 
         # provenance = Provenance(self.basename(pickle_obj['pipeline_path']))
         provenance = Provenance(pickle_dict['pipeline_path'])
