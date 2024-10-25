@@ -36,6 +36,7 @@ def msmd_collect(ms_file):
         'chan_res': msmd.chanwidths(0)[0],
         'nchan'   : len(msmd.chanwidths(0)),
         'prop_id' : msmd.projects()[0]
+
     }
     msmd.close()
 
@@ -99,3 +100,4 @@ def get_scan_sum(ms_file):
     scan_sum = ms.getscansummary()
     ms.close()
     return scan_sum
+

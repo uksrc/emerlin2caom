@@ -1,6 +1,7 @@
 import pickle
 import os
 import subprocess
+from os.path import basename
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
     ReleaseType, ObservationWriter, ProductType, ChecksumURI, Provenance, Position, Point, Energy, TargetPosition, \
@@ -58,6 +59,7 @@ class EmerlinMetadata:
     xml_out_dir = set_f.xmldir
     if xml_out_dir[-1] != '/':
         xml_out_dir += '/'
+
     # ska_token = set.ska_token
 
     def basename(self, name):
@@ -121,7 +123,6 @@ class EmerlinMetadata:
         provenance.version = fits_header_data['wsc_version']
 
         return plane
-
 
 
 
@@ -251,6 +252,7 @@ class EmerlinMetadata:
         observation.intent = ObservationIntentType.SCIENCE
 
         observation.target = Target('TBD')
+
         target_name = pickle_obj['targets']
         observation.target.name = target_name
         # this needs correcting so that the data format is correct, unsure what it wants right now
@@ -258,7 +260,7 @@ class EmerlinMetadata:
         observation.telescope = Telescope(casa_info['tel_name'][0])
         observation.planes = TypedOrderedDict(Plane)
 
-        plane = self.measurement_set_metadata(observation, ms_dir, pickle_obj)
+        plane = self.measurement_set_metadata(observation, obs_id, ms_dir, pickle_obj)
 
         for directory in os.listdir(self.storage_name + '/weblog/plots/'):
             for plots in os.listdir(self.storage_name + '/weblog/plots/' + directory + '/'):
@@ -267,13 +269,13 @@ class EmerlinMetadata:
 
         for directory in os.listdir(self.storage_name + '/weblog/images/'):
             main_fits = [x for x in os.listdir(self.storage_name + '/weblog/images/' + directory + '/') if x.endswith('-image.fits')]
-            plane_id_full = self.storage_name + '/weblog/images/' + directory + '/'
-            plane = self.fits_plane_metadata(observation, plane_id_full, main_fits[0])
-
              # will this break?
-            for images in os.listdir(self.storage_name + '/weblog/images/' + directory + '/'):
-                images_full_name = self.storage_name + '/weblog/images/' + directory + '/' + images
-                self.artifact_metadata(plane, images_full_name, images)
+            if len(main_fits) > 0:
+                plane_id_full = self.storage_name + '/weblog/images/' + directory + '/'
+                plane = self.fits_plane_metadata(observation, plane_id_full, main_fits[0])
+                for images in os.listdir(self.storage_name + '/weblog/images/' + directory + '/'):
+                    images_full_name = self.storage_name + '/weblog/images/' + directory + '/' + images
+                    self.artifact_metadata(plane, images_full_name, images)
 
         for directory in os.listdir(self.storage_name + '/splits/'):
             extension = directory.split('.')[-1]
@@ -293,7 +295,7 @@ class EmerlinMetadata:
         #     else:
         #         # may want to add try, except clause here when completed for robustness
         #         plane_id_full = self.storage_name + '/weblog/calib/' + directory + '/'
-        #         self.measurement_set_metadata(observation, plane_id_full, pickle_obj)
+        #         self.measurement_set_metadata(observation, obs_id, plane_id_full, pickle_obj)
 
         # structure of observation outside of functions?
         xml_output_name = self.xml_out_dir + obs_id + '.xml'
