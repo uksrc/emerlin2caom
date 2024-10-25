@@ -6,25 +6,17 @@ from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, T
     ReleaseType, ObservationWriter, ProductType, ChecksumURI, Provenance, Position, Point, Energy, TargetPosition, \
     Interval, TypedSet, Polarization, shape, Proposal, Instrument, DerivedObservation
 from pkg_resources import Environment
+from setuptools.config.expand import canonic_data_files
 
 import casa_reader as casa
-import measurement_set_metadata as msmd
+import file_metadata as msmd
 import fits_reader as fr
 import settings_file as set_f
-import math
 
 __all__ = [
     'EmerlinMetadata',
-    'polar2cart',
     'emcp2dict'
 ]
-
-
-def polar2cart(r, theta, phi):
-    x = r * math.sin(theta) * math.cos(phi)
-    y = r * math.sin(theta) * math.sin(phi)
-    z = r * math.cos(theta)
-    return {'x':x, 'y':y, 'z':z}
 
 
 def emcp2dict(emcp_file):
@@ -114,7 +106,7 @@ class EmerlinMetadata:
 
         energy = Energy()
         plane.energy = energy
-        plane.energy.restwav = 3e8/fits_header_data['central_freq']  # change freq to wav and check against model
+        plane.energy.restwav = casa.freq2wl(fits_header_data['central_freq'])  # change freq to wav and check against model
 
         provenance = Provenance(images)
         plane.provenance = provenance
@@ -186,8 +178,9 @@ class EmerlinMetadata:
     def build_simple_observation(self, casa_info, pickle_dict, ante_id):
 
         obs_id = self.basename(self.storage_name)
-
-        observation = SimpleObservation('EMERLIN', '{}_{}'.format(obs_id, ante_id))
+        print(casa_info['antennas'])
+        print(casa_info['antennas'][int(ante_id)])
+        observation = SimpleObservation('EMERLIN', '{}_{}'.format(obs_id, casa_info['antennas'][int(ante_id)]))
         observation.obs_type = 'science'
         observation.intent = ObservationIntentType.SCIENCE
 
@@ -198,27 +191,21 @@ class EmerlinMetadata:
         observation.target.name = target_name
         # observation.targetposition = TargetPosition()
         # observation.targetposition = target_pos
-
         observation.telescope = Telescope(casa_info['tel_name'][0])
         observation.proposal = Proposal(casa_info['prop_id'])
-        if ante_id != 'lovell':
-            cart_coords = polar2cart(casa_info['ante_pos'][ante_id]['m0']['value'],
+        cart_coords = casa.polar2cart(casa_info['ante_pos'][ante_id]['m0']['value'],
                                      casa_info['ante_pos'][ante_id]['m1']['value'],
                                      casa_info['ante_pos'][ante_id]['m2']['value'])
 
-            instrument_name = casa_info['antennas'][ante_id]
-        else:
-            cart_coords = polar2cart(casa_info['obs_pos']['m0']['value'],
-                                     casa_info['obs_pos']['m1']['value'],
-                                     casa_info['obs_pos']['m2']['value'])
-            instrument_name = 'lv'
+        instrument_name = casa_info['antennas'][ante_id]
+
 
         observation.telescope.geo_location_x = cart_coords['x']
         observation.telescope.geo_location_y = cart_coords['y']
         observation.telescope.geo_location_z = cart_coords['z']
         observation.instrument = Instrument(instrument_name)
 
-        xml_output_name = self.xml_out_dir + obs_id + '_' + str(ante_id) + '.xml'
+        xml_output_name = self.xml_out_dir + obs_id + '_' + casa_info['antennas'][int(ante_id)] + '.xml'
         writer = ObservationWriter()
         writer.write(observation, xml_output_name)
 
@@ -244,9 +231,6 @@ class EmerlinMetadata:
             simple_observation = self.build_simple_observation(casa_info, pickle_obj, tele)
             observation.members.add(simple_observation.get_uri())
 
-        simple_observation = self.build_simple_observation(casa_info, pickle_obj, 'lovell')
-        observation.members.add(simple_observation.get_uri())
-
         observation.obs_type = 'science'
         observation.intent = ObservationIntentType.SCIENCE
 
@@ -268,7 +252,8 @@ class EmerlinMetadata:
         for directory in os.listdir(self.storage_name + '/weblog/images/'):
             main_fits = [x for x in os.listdir(self.storage_name + '/weblog/images/' + directory + '/') if x.endswith('-image.fits')]
             plane_id_full = self.storage_name + '/weblog/images/' + directory + '/'
-            plane = self.fits_plane_metadata(observation, plane_id_full, main_fits[0])
+            if main_fits:
+                plane = self.fits_plane_metadata(observation, plane_id_full, main_fits[0])
 
              # will this break?
             for images in os.listdir(self.storage_name + '/weblog/images/' + directory + '/'):
