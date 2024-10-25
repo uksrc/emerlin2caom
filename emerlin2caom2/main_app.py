@@ -254,11 +254,10 @@ class EmerlinMetadata:
             plane_id_full = self.storage_name + '/weblog/images/' + directory + '/'
             if main_fits:
                 plane = self.fits_plane_metadata(observation, plane_id_full, main_fits[0])
-
-             # will this break?
-            for images in os.listdir(self.storage_name + '/weblog/images/' + directory + '/'):
-                images_full_name = self.storage_name + '/weblog/images/' + directory + '/' + images
-                self.artifact_metadata(plane, images_full_name, images)
+                 # will this break?
+                for images in os.listdir(self.storage_name + '/weblog/images/' + directory + '/'):
+                    images_full_name = self.storage_name + '/weblog/images/' + directory + '/' + images
+                    self.artifact_metadata(plane, images_full_name, images)
 
         for directory in os.listdir(self.storage_name + '/splits/'):
             extension = directory.split('.')[-1]
