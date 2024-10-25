@@ -73,6 +73,7 @@ def target_position(emcp_file, target):
 
     return pos_num
 
+
 class EmerlinMetadata:
     """
     Populates an XML document with caom format metadata, extracted from an input measurement set.
@@ -195,7 +196,7 @@ class EmerlinMetadata:
 
         plane.artifacts = TypedOrderedDict(Artifact)
 
-        artifact = Artifact('uri:{}'.format(ms_name), ProductType.SCIENCE, ReleaseType.META)
+        artifact = Artifact('uri:{}'.format(ms_name), ProductType.SCIENCE, ReleaseType.DATA)
         plane.artifacts['uri:{}'.format(ms_name)] = artifact
 
         meta_data = msmd.get_local_file_info(ms_dir)
@@ -271,9 +272,9 @@ class EmerlinMetadata:
 
         for tele in range(len(casa_info['antennas'])):
             simple_observation = self.build_simple_observation(casa_info, pickle_obj, tele)
-            observation.members.add(simple_observation.get_uri())
+            observation.members.add(simple_observation.get_uri()) # change id to abbreviation of name
 
-        simple_observation = self.build_simple_observation(casa_info, pickle_obj, 'lovell')
+        simple_observation = self.build_simple_observation(casa_info, pickle_obj, 'lovell') # change to lv
         observation.members.add(simple_observation.get_uri())
 
         observation.obs_type = 'science'
