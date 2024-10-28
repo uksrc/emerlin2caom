@@ -128,7 +128,7 @@ def get_release_date(ms_file):
     :returns rel_date: date in mjd seconds... which is what caom wants.
     """
     tb.open(ms_file+'/OBSERVATION')
-    rel_date = mjdtodate(tb.getcol('RELEASE_DATE')[0]/60./60./24.)
+    rel_date = mjdtodate(tb.getcol('RELEASE_DATE')[0]/60./60./24)
     tb.close()
     return rel_date
 

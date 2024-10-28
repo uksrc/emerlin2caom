@@ -140,6 +140,8 @@ class EmerlinMetadata:
         # Plane Time Object
         plane.time = Time()
         
+        time_sample = shape.SubInterval(ms_other["obs_start_time"], ms_other["obs_stop_time"])
+        plane.time.bounds = Interval(ms_other["obs_start_time"], ms_other["obs_stop_time"], samples=[time_sample])
 
         plane.polarization = Polarization()
         #pol_states, dim = casa.get_polar(ms_dir)
