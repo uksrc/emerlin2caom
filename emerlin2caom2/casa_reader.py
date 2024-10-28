@@ -41,6 +41,7 @@ def msmd_collect(ms_file):
         'prop_id' : msmd.projects()[0]
     }
 
+    # Not sure if this is still necessary with latest merge; keep for now? 
     nice_order = ['Lo', 'Mk2', 'Pi', 'Da', 'Kn', 'De', 'Cm']
     refant = [a for a in nice_order if a in msmd_elements['antennas']]
     geo = msmd.antennaposition(refant[0])
@@ -52,9 +53,6 @@ def msmd_collect(ms_file):
         'wl_lower': freq2wl(msmd_elements['wl_lower']),
         'chan_res': msmd_elements['chan_res']/1e9,
         'bp_name': emerlin_band(msmd_elements['wl_upper']),
-        'geoloc_x': geo["m0"]["value"],
-        'geoloc_y': geo["m1"]["value"],
-        'geoloc_z': geo["m2"]["value"]
     }
 
     # Update dictionary with converted values and additions.
@@ -135,6 +133,7 @@ def polar2cart(r, theta, phi):
     y = r * math.sin(theta) * math.sin(phi)
     z = r * math.cos(theta)
     return {'x':x, 'y':y, 'z':z}
+
 def get_release_date(ms_file):
     """
     To do convert to ivoa:datetime

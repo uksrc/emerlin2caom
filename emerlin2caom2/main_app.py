@@ -4,7 +4,7 @@ import subprocess
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
     ReleaseType, ObservationWriter, ProductType, ChecksumURI, Provenance, Position, Point, Energy, TargetPosition, \
-    Interval, TypedSet, Polarization, shape, Proposal, Instrument, DerivedObservation
+    Interval, TypedSet, Polarization, shape, Proposal, Instrument, DerivedObservation, Time
 from pkg_resources import Environment
 from setuptools.config.expand import canonic_data_files
 
@@ -246,12 +246,7 @@ class EmerlinMetadata:
         observation.target = Target('TBD')
         target_name = pickle_obj['targets']
         observation.target.name = target_name
-        # TO ADD: Collect primary target name from splits file in ms. 
-        # observation.target.position = TargetPosition(str(casa.find_mssources(ms_dir)), 'J2000')
         observation.telescope = Telescope(casa_info['tel_name'][0])
-        observation.telescope.geo_location_x = casa_info['geoloc_x']
-        observation.telescope.geo_location_y = casa_info['geoloc_y']
-        observation.telescope.geo_location_z = casa_info['geoloc_z']
 
         observation.planes = TypedOrderedDict(Plane)
 
