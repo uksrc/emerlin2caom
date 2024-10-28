@@ -86,6 +86,8 @@ def get_file_type(fqn):
         return 'text/csv'
     elif lower_fqn.endswith('.hdf5') or fqn.endswith('.h5'):
         return 'application/x-hdf5'
+    elif lower_fqn.endswith('.pkl'):
+        return 'python/pickle'
     else:
         return 'text/plain'
 

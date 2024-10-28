@@ -14,5 +14,8 @@ def header_extraction(fits_file):
     fits_out['dec_deg'] = newhead['CRVAL2']
     fits_out['wsc_version'] = newhead['WSCVERSI']
     fits_out['central_freq'] = newhead['CRVAL3']
-
+    fits_out['pix_width'] = newhead['NAXIS1']
+    fits_out['pix_length'] = newhead['NAXIS2']
+    fits_out['pix_width_scale'] = newhead['CDELT1']
+    fits_out['pix_length_scale'] = newhead['CDELT2']
     return fits_out
