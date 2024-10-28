@@ -109,7 +109,7 @@ class EmerlinMetadata:
         :param artifact_full_name: full location of target object
         :param plots: name of artifact only, no path
         '''
-        artifact = Artifact('uri:{}'.format(plots), ProductType.AUXILIARY, ReleaseType.META)
+        artifact = Artifact('uri:{}'.format(plots), ProductType.AUXILIARY, ReleaseType.DATA)
         plane.artifacts['uri:{}'.format(plots)] = artifact
         meta_data = msmd.get_local_file_info(artifact_full_name)
 
@@ -226,8 +226,8 @@ class EmerlinMetadata:
 
         observation.target = Target('TBD')
         observation.target.name = target_name
-        observation.target_position = TargetPosition(point, 'coordsys') # J2000?
-
+        observation.target_position = TargetPosition(point, 'Equatorial') # J2000?
+        observation.target_position.equinox = 2000
 
         observation.telescope = Telescope(casa_info['tel_name'][0])
         observation.proposal = Proposal(casa_info['prop_id'])
