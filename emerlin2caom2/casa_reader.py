@@ -2,6 +2,7 @@
 # -built operations.  When more table.open operations are added, it 
 # would be good to combine them all into one open.
 import casatools
+import math
 
 msmd = casatools.msmetadata()
 ms = casatools.ms()
@@ -16,17 +17,26 @@ def msmd_collect(ms_file):
 
     """
     msmd.open(ms_file)
-
     nspw = msmd.nspw()
+
+    antenna_ids = msmd.antennaids()
+    field_ids = range(msmd.nfields())
+
+
     msmd_elements = {
         'mssources': msmd.fieldnames(),
+        'phs_cntr': [msmd.phasecenter(x) for x in field_ids],
+        'field_time': [msmd.timesforfield(x) for x in field_ids],
         'tel_name': msmd.observatorynames(),
         'antennas': msmd.antennanames(),
+        'ante_off': [msmd.antennaoffset(x) for x in antenna_ids],
+        'ante_pos': [msmd.antennaposition(x) for x in antenna_ids],
+        'obs_pos' : msmd.observatoryposition(),
         'wl_upper': msmd.chanfreqs(0)[0],
         'wl_lower': msmd.chanfreqs(nspw-1)[-1],
         'chan_res': msmd.chanwidths(0)[0],
-        'nchan': len(msmd.chanwidths(0)),
-        'project': msmd.observers()[0]
+        'nchan'   : len(msmd.chanwidths(0)),
+        'prop_id' : msmd.projects()[0]
     }
     msmd.close()
 
@@ -91,3 +101,8 @@ def get_scan_sum(ms_file):
     ms.close()
     return scan_sum
 
+def polar2cart(r, theta, phi):
+    x = r * math.sin(theta) * math.cos(phi)
+    y = r * math.sin(theta) * math.sin(phi)
+    z = r * math.cos(theta)
+    return {'x':x, 'y':y, 'z':z}
