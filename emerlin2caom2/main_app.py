@@ -178,8 +178,6 @@ class EmerlinMetadata:
     def build_simple_observation(self, casa_info, pickle_dict, ante_id):
 
         obs_id = self.basename(self.storage_name)
-        print(casa_info['antennas'])
-        print(casa_info['antennas'][int(ante_id)])
         observation = SimpleObservation('EMERLIN', '{}_{}'.format(obs_id, casa_info['antennas'][int(ante_id)]))
         observation.obs_type = 'science'
         observation.intent = ObservationIntentType.SCIENCE
