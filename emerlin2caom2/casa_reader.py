@@ -2,8 +2,8 @@
 # -built operations.  When more table.open operations are added, it 
 # would be good to combine them all into one open.
 import casatools
+import math
 import numpy as np
-
 
 msmd = casatools.msmetadata()
 ms = casatools.ms()
@@ -117,3 +117,9 @@ def target_position(ms_file, target):
     source_coords_dec = np.rad2deg(source_ref[1][0][source_name.tolist().index(target)]) % 360
     tb.close()
     return [source_coords_ra, source_coords_dec]
+  
+def polar2cart(r, theta, phi):
+    x = r * math.sin(theta) * math.cos(phi)
+    y = r * math.sin(theta) * math.sin(phi)
+    z = r * math.cos(theta)
+    return {'x':x, 'y':y, 'z':z}
