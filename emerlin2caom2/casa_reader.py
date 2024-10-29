@@ -2,6 +2,7 @@
 # -built operations.  When more table.open operations are added, it 
 # would be good to combine them all into one open.
 import casatools
+import math
 
 msmd = casatools.msmetadata()
 ms = casatools.ms()
@@ -99,3 +100,9 @@ def get_scan_sum(ms_file):
     scan_sum = ms.getscansummary()
     ms.close()
     return scan_sum
+
+def polar2cart(r, theta, phi):
+    x = r * math.sin(theta) * math.cos(phi)
+    y = r * math.sin(theta) * math.sin(phi)
+    z = r * math.cos(theta)
+    return {'x':x, 'y':y, 'z':z}

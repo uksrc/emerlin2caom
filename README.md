@@ -23,7 +23,11 @@ Once the settings file is filled in, the code can be run using the run_script.py
 python run_script.py
 ```
 
-The expected output is an xml file which describes the metadata of the avg.ms, plots (found in weblog/plot), and fits images (found in weblog/images). 
+The expected output is a series of xml files which describes the metadata of the avg.ms, plots (found in weblog/plot),
+and fits images (found in weblog/images). The main output is the derived observation which is named according to your 
+input e-Merlin data, this contains the majority of the metadata. There are also additional xml files which are simple 
+observations and describe the telescopes used within the observation, each is named as with the main output, but will an 
+additional tag which indicates the telescope that is modelled. 
 
 Objects that are included within the emerlin output but not the metadata currently are:
 - calibration measurement sets (found in weblog/calib),
@@ -31,7 +35,6 @@ Objects that are included within the emerlin output but not the metadata current
 - log files from casa and the emerlin pipeline
 - the eMERLIN_CASA_pipeline codebase
 - observatory.flags
-- measurement sets found within the splits directory
 - _avg.ms.flagversions measurement sets
 - all html files found within weblog, as well as logs and the emerlin gif
 
