@@ -43,35 +43,21 @@ def emcp2dict(emcp_file):
         if ':' in line_no_space:
             nested_list = line_no_space.split(':')
             pickle_dict[nested_list[0]] = nested_list[1]
-    pickle_dict['target_position'] = target_position(emcp_file, pickle_dict['targets'])
     return pickle_dict
 
-
-def target_position(emcp_file, target):
+def basename(name):
     """
-    Get the target position from the text version of the eMCP file. The pickle file would be better but will require
-    new python versions and packages for each version of the e-merlin pipeline. It would also be better to extract this
-    info from the measurement set but there is no indication on which observed object is the target. So this will do.
-    :param emcp_file: path to emcp.txt file
-    :param target: name of target from pickle file
-    :returns: list of ra,dec in degrees
+    Adaptation of os.basename for use with directories, instead of files
+    :param name: Full path to directory
+    :returns: Name of the directory, without path
     """
-    with open(emcp_file) as file:
-        lines = [line.rstrip() for line in file]
-    gate = 0
-    pos_num = [0,0] # here so everything does not break if this does
-    for line in lines:
-        if gate == 1:
-            to_remove = ['(', ')', '>']
-            pos_str = ''.join([c for c in line if c not in to_remove]).strip()
-            positions = pos_str.split(', ')
-            pos_num = [float(x) for x in positions]
-            gate += 1
-        if target in line and '<SkyCoord (ICRS): (ra, dec) in deg' in line:
-            print(line)
-            gate += 1
-
-    return pos_num
+    if name[-1] == '/':
+        name = name[:-1]
+    if '/' not in name:
+        base_name = name
+    else:
+        base_name = name.split('/')[-1]
+    return base_name
 
 
 class EmerlinMetadata:
@@ -82,33 +68,22 @@ class EmerlinMetadata:
     :returns: Name of the output xml, id for the observation in the xml file
     """
     storage_name = set_f.storage_name
-    # rootca = set.rootca
     xml_out_dir = set_f.xmldir
     if xml_out_dir[-1] != '/':
         xml_out_dir += '/'
+    # rootca = set.rootca
     # ska_token = set.ska_token
-
-    def basename(self, name):
-        """
-        Adaptation of os.basename for use with directories, instead of files
-        :param name: Full path to directory
-        :returns: Name of the directory, without path
-        """
-        if name[-1] == '/':
-            name = name[:-1]
-        if '/' not in name:
-            base_name = name
-        else:
-            base_name = name.split('/')[-1]
-        return base_name
+    obs_id = basename(storage_name)
+    ms_dir_main = storage_name + '/{}_avg.ms'.format(obs_id)  # maybe flimsy? depends on the rigidity of the em pipeline
+    pickle_file = storage_name + '/weblog/info/eMCP_info.txt'
 
     def artifact_metadata(self, plane, artifact_full_name, plots):
-        '''
+        """
         Creates metadata for physical artifacts, including type, size and hash value
         :param plane: plane to add artifact metadata to
         :param artifact_full_name: full location of target object
         :param plots: name of artifact only, no path
-        '''
+        """
         artifact = Artifact('uri:{}'.format(plots), ProductType.AUXILIARY, ReleaseType.DATA)
         plane.artifacts['uri:{}'.format(plots)] = artifact
         meta_data = msmd.get_local_file_info(artifact_full_name)
@@ -118,13 +93,13 @@ class EmerlinMetadata:
         artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
 
     def fits_plane_metadata(self, observation, fits_full_name, images):
-        '''
+        """
         Creates metadata for fits files, currently includes only basic information with scope to add more
         :param observation: Class to add metadata to
         :param fits_full_name: String format name and path to fits file
         :param images: String name of fits file, no path
         :returns: plane created for fits file to be passed to the artifact function
-        '''
+        """
 
         plane = Plane(images)
         observation.planes[images] = plane
@@ -150,19 +125,16 @@ class EmerlinMetadata:
 
         return plane
 
-
-
-
     def measurement_set_metadata(self, observation, ms_dir, pickle_dict):
-        '''
+        """
         Creates metadata for measurement sets, extracting infomation from the ms itself, as well as the pickle file
         :param observation:  Class to add metadata to
         :param ms_dir: string path and name of measurement set
         :param pickle_dict: pickle object read in from file
         :returns: Plane class where data was added
-        '''
+        """
 
-        ms_name = self.basename(ms_dir)
+        ms_name = basename(ms_dir)
         msmd_dict = casa.msmd_collect(ms_dir)
 
         plane = Plane(ms_name)
@@ -213,15 +185,13 @@ class EmerlinMetadata:
 
     def build_simple_observation(self, casa_info, pickle_dict, ante_id):
 
-        obs_id = self.basename(self.storage_name)
-
-        observation = SimpleObservation('EMERLIN', '{}_{}'.format(obs_id, ante_id))
+        observation = SimpleObservation('EMERLIN', '{}_{}'.format(self.obs_id, ante_id))
         observation.obs_type = 'science'
         observation.intent = ObservationIntentType.SCIENCE
 
 
         target_name = pickle_dict['targets']
-        target_pos = pickle_dict['target_position']
+        target_pos = casa.target_position(self.ms_dir_main, target_name)
         point = Point(target_pos[0], target_pos[1])
 
         observation.target = Target('TBD')
@@ -248,7 +218,7 @@ class EmerlinMetadata:
         observation.telescope.geo_location_z = cart_coords['z']
         observation.instrument = Instrument(instrument_name)
 
-        xml_output_name = self.xml_out_dir + obs_id + '_' + str(ante_id) + '.xml'
+        xml_output_name = self.xml_out_dir + self.obs_id + '_' + str(ante_id) + '.xml'
         writer = ObservationWriter()
         writer.write(observation, xml_output_name)
 
@@ -262,12 +232,10 @@ class EmerlinMetadata:
         plots and pickle file metadata. The target measurement set and output destination are defined within the
         settings_file.py.
         '''
-        obs_id = self.basename(self.storage_name)
-        ms_dir = self.storage_name + '/{}_avg.ms'.format(obs_id) # maybe flimsy? depends on the rigidity of the em pipeline
-        pickle_file = self.storage_name + '/weblog/info/eMCP_info.txt'
-        pickle_obj = emcp2dict(pickle_file)
+        obs_id = basename(self.storage_name)
+        pickle_obj = emcp2dict(self.pickle_file)
 
-        casa_info = casa.msmd_collect(ms_dir)
+        casa_info = casa.msmd_collect(self.ms_dir_main)
         observation = DerivedObservation('EMERLIN', obs_id, 'correlator')
 
         for tele in range(len(casa_info['antennas'])):
@@ -282,7 +250,7 @@ class EmerlinMetadata:
 
         observation.target = Target('TBD')
         target_name = pickle_obj['targets']
-        target_pos = pickle_obj['target_position']
+        target_pos = casa.target_position(self.ms_dir_main, target_name)
         point = Point(target_pos[0], target_pos[1])
 
         observation.target.name = target_name
@@ -290,7 +258,7 @@ class EmerlinMetadata:
         observation.telescope = Telescope(casa_info['tel_name'][0])
         observation.planes = TypedOrderedDict(Plane)
 
-        plane = self.measurement_set_metadata(observation, ms_dir, pickle_obj)
+        plane = self.measurement_set_metadata(observation, self.ms_dir_main, pickle_obj)
 
         for directory in os.listdir(self.storage_name + '/weblog/plots/'):
             for plots in os.listdir(self.storage_name + '/weblog/plots/' + directory + '/'):
@@ -312,7 +280,7 @@ class EmerlinMetadata:
             if extension == 'ms':
                 plane_id_full = self.storage_name + '/splits/' + directory + '/'
                 self.measurement_set_metadata(observation, plane_id_full, pickle_obj)
-        # currently not handling flagv_ersions as casa will not read "ms1" version measurement sets
+        # currently not handling flag_versions as casa will not read "ms1" version measurement sets
         
         # removed for now but this structure can be used for auxiliary measurement sets in future
         # for directory in os.listdir(self.storage_name + '/weblog/calib/'):
