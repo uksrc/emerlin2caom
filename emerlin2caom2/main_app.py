@@ -227,7 +227,7 @@ class EmerlinMetadata:
         observation.target = Target('TBD')
         observation.target.name = target_name
         observation.target_position = TargetPosition(point, 'Equatorial') # J2000?
-        observation.target_position.equinox = 2000
+        observation.target_position.equinox = 2000.
 
         observation.telescope = Telescope(casa_info['tel_name'][0])
         observation.proposal = Proposal(casa_info['prop_id'])
