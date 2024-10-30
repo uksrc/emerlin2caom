@@ -3,7 +3,7 @@
 # would be good to combine them all into one open.
 import casatools
 import math
-import numpy
+import numpy as np
 import datetime
 
 msmd = casatools.msmetadata()
@@ -181,7 +181,7 @@ def get_obstime(ms_file):
     """
     ms.open(ms_file)
     t = ms.getdata('TIME')['time']
-    t_ini = numpy.min(t)
-    t_end = numpy.max(t)
+    t_ini = np.min(t)
+    t_end = np.max(t)
     ms.close()
     return t_ini, t_end

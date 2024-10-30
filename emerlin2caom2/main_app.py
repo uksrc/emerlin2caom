@@ -126,7 +126,7 @@ class EmerlinMetadata:
         :returns: Plane class where data was added
         """
 
-        ms_name = self.basename(ms_dir)
+        ms_name = basename(ms_dir)
         msmd_dict = casa.msmd_collect(ms_dir, pickle_dict['targets'])
         
         ms_other = casa.ms_other_collect(ms_dir)     
@@ -243,9 +243,9 @@ class EmerlinMetadata:
         '''
         pickle_obj = emcp2dict(self.pickle_file)
 
-        casa_info = casa.msmd_collect(ms_dir, pickle_obj['targets'])
-        casa_other = casa.ms_other_collect(ms_dir)
-        observation = DerivedObservation('EMERLIN', obs_id, 'correlator')
+        casa_info = casa.msmd_collect(self.ms_dir_main, pickle_obj['targets'])
+        casa_other = casa.ms_other_collect(self.ms_dir_main)
+        observation = DerivedObservation('EMERLIN', self.obs_id, 'correlator')
 
         for tele in range(len(casa_info['antennas'])):
             simple_observation = self.build_simple_observation(casa_info, pickle_obj, tele)
