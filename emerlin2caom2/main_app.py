@@ -176,8 +176,12 @@ class EmerlinMetadata:
 
 
     def build_simple_observation(self, casa_info, pickle_dict, ante_id):
-
-        obs_id = self.basename(self.storage_name)
+        """
+        :param casa_info: dictionary of metadata extracted from measurement set
+        :param pickle_dict: dictionary of metadata extracted from the text version of the pickle file
+        :param ante_id: antenna id, int
+        :returns: the caom observation created
+        """
         observation = SimpleObservation('EMERLIN', '{}_{}'.format(obs_id, casa_info['antennas'][int(ante_id)]))
         observation.obs_type = 'science'
         observation.intent = ObservationIntentType.SCIENCE
@@ -222,11 +226,10 @@ class EmerlinMetadata:
         plots and pickle file metadata. The target measurement set and output destination are defined within the
         settings_file.py.
         '''
-        obs_id = basename(self.storage_name)
         pickle_obj = emcp2dict(self.pickle_file)
 
         casa_info = casa.msmd_collect(self.ms_dir_main)
-        observation = DerivedObservation('EMERLIN', obs_id, 'correlator')
+        observation = DerivedObservation('EMERLIN', self.obs_id, 'correlator')
 
         for tele in range(len(casa_info['antennas'])):
             simple_observation = self.build_simple_observation(casa_info, pickle_obj, tele)
@@ -285,7 +288,7 @@ class EmerlinMetadata:
         #         self.measurement_set_metadata(observation, plane_id_full, pickle_obj)
 
         # structure of observation outside of functions?
-        xml_output_name = self.xml_out_dir + obs_id + '.xml'
+        xml_output_name = self.xml_out_dir + self.obs_id + '.xml'
 
         writer = ObservationWriter()
         writer.write(observation, xml_output_name)
