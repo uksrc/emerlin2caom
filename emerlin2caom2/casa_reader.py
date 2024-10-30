@@ -37,7 +37,7 @@ def msmd_collect(ms_file):
         'wl_upper': msmd.chanfreqs(0)[0],
         'wl_lower': msmd.chanfreqs(nspw-1)[-1],
         'chan_res': msmd.chanwidths(0)[0],
-        'nchan'   : len(msmd.chanwidths(0)),
+        'nchan'   : nspw * len(msmd.chanwidths(0)),
         'prop_id' : msmd.projects()[0]
     }
 
@@ -51,7 +51,7 @@ def msmd_collect(ms_file):
     elements_convert = {
         'wl_upper': freq2wl(msmd_elements['wl_upper']),
         'wl_lower': freq2wl(msmd_elements['wl_lower']),
-        'chan_res': msmd_elements['chan_res']/1e9,
+        'chan_res': msmd_elements['chan_res']/1e9, 
         'bp_name': emerlin_band(msmd_elements['wl_upper']),
     }
 

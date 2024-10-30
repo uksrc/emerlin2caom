@@ -144,7 +144,10 @@ class EmerlinMetadata:
         sample = shape.SubInterval(msmd_dict["wl_lower"], msmd_dict["wl_upper"])
         plane.energy.bounds = Interval(msmd_dict["wl_lower"], msmd_dict["wl_upper"], samples=[sample])
         plane.energy.bandpass_name = str(msmd_dict["bp_name"])
-
+        
+        plane.energy.sample_size = msmd_dict["chan_res"]
+        plane.energy.dimension = msmd_dict["nchan"]      
+ 
         # This doesn't break anything but also isn't printed to xml. caom2.5?
         plane.energy.energy_bands = TypedSet('Radio')
 
