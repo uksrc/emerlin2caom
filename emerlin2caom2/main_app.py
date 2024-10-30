@@ -182,7 +182,7 @@ class EmerlinMetadata:
         :param ante_id: antenna id, int
         :returns: the caom observation created
         """
-        observation = SimpleObservation('EMERLIN', '{}_{}'.format(obs_id, casa_info['antennas'][int(ante_id)]))
+        observation = SimpleObservation('EMERLIN', '{}_{}'.format(self.obs_id, casa_info['antennas'][int(ante_id)]))
         observation.obs_type = 'science'
         observation.intent = ObservationIntentType.SCIENCE
 
@@ -212,7 +212,7 @@ class EmerlinMetadata:
         observation.instrument = Instrument(instrument_name)
 
 
-        xml_output_name = self.xml_out_dir + obs_id + '_' + casa_info['antennas'][int(ante_id)] + '.xml'
+        xml_output_name = self.xml_out_dir + self.obs_id + '_' + casa_info['antennas'][int(ante_id)] + '.xml'
         writer = ObservationWriter()
         writer.write(observation, xml_output_name)
 
