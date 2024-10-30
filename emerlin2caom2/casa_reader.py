@@ -10,10 +10,11 @@ msmd = casatools.msmetadata()
 ms = casatools.ms()
 tb = casatools.table()
 
-def msmd_collect(ms_file):
+def msmd_collect(ms_file, targ_name):
     """
     Consolidate opening measurement set to one function
     :param ms_file: Input measurement set
+    :param targ_name: Primary target name string
     :returns msmd_elements: data structure dictionary of relevant 
     metadata
 
@@ -24,6 +25,7 @@ def msmd_collect(ms_file):
     antenna_ids = msmd.antennaids()
     field_ids = range(msmd.nfields())
 
+    first_scan = msmd.scannumbers()[0]    
 
     msmd_elements = {
         'mssources': msmd.fieldnames(),
@@ -38,7 +40,9 @@ def msmd_collect(ms_file):
         'wl_lower': msmd.chanfreqs(nspw-1)[-1],
         'chan_res': msmd.chanwidths(0)[0],
         'nchan'   : nspw * len(msmd.chanwidths(0)),
-        'prop_id' : msmd.projects()[0]
+        'prop_id' : msmd.projects()[0],
+        'num_scans': len(msmd.scansforfield(targ_name)),
+        'int_time' : msmd.exposuretime(first_scan)['value']
     }
 
     # Not sure if this is still necessary with latest merge; keep for now? 
@@ -165,5 +169,3 @@ def get_obstime(ms_file):
     t_end = numpy.max(t)
     ms.close()
     return t_ini, t_end
-
-

@@ -127,7 +127,7 @@ class EmerlinMetadata:
         '''
 
         ms_name = self.basename(ms_dir)
-        msmd_dict = casa.msmd_collect(ms_dir)
+        msmd_dict = casa.msmd_collect(ms_dir, pickle_dict['targets'])
         
         ms_other = casa.ms_other_collect(ms_dir)     
 
@@ -156,6 +156,8 @@ class EmerlinMetadata:
         
         time_sample = shape.SubInterval(ms_other["obs_start_time"], ms_other["obs_stop_time"])
         plane.time.bounds = Interval(ms_other["obs_start_time"], ms_other["obs_stop_time"], samples=[time_sample])
+        plane.time.exposure = msmd_dict["int_time"]
+        plane.time.dimension = msmd_dict["num_scans"]
 
         plane.polarization = Polarization()
         #pol_states, dim = casa.get_polar(ms_dir)
@@ -235,7 +237,7 @@ class EmerlinMetadata:
         pickle_file = self.storage_name + '/weblog/info/eMCP_info.txt'
         pickle_obj = emcp2dict(pickle_file)
 
-        casa_info = casa.msmd_collect(ms_dir)
+        casa_info = casa.msmd_collect(ms_dir, pickle_obj['targets'])
         casa_other = casa.ms_other_collect(ms_dir)
         observation = DerivedObservation('EMERLIN', obs_id, 'correlator')
 
