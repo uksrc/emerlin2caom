@@ -3,6 +3,7 @@
 # would be good to combine them all into one open.
 import casatools
 import math
+import numpy as np
 
 msmd = casatools.msmetadata()
 ms = casatools.ms()
@@ -101,6 +102,22 @@ def get_scan_sum(ms_file):
     ms.close()
     return scan_sum
 
+def target_position(ms_file, target):
+    """
+    Get position of target object. Right now it takes an input target. Can instead go entirely via the measurement set
+    and instead return two target positions, without knowledge of which is the primary.
+    :param ms_file: input measurement set name
+    :param target: target object name
+    :returns: [ra, dec] in degrees
+    """
+    tb.open(ms_file+'/FIELD')
+    source_name = tb.getcol('NAME')
+    source_ref = tb.getcol('REFERENCE_DIR')
+    source_coords_ra = np.rad2deg(source_ref[0][0][source_name.tolist().index(target)]) % 360
+    source_coords_dec = np.rad2deg(source_ref[1][0][source_name.tolist().index(target)]) % 360
+    tb.close()
+    return [source_coords_ra, source_coords_dec]
+  
 def polar2cart(r, theta, phi):
     x = r * math.sin(theta) * math.cos(phi)
     y = r * math.sin(theta) * math.sin(phi)
