@@ -4,7 +4,7 @@ import subprocess
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
     ReleaseType, ObservationWriter, ProductType, ChecksumURI, Provenance, Position, Point, Energy, TargetPosition, \
-    Interval, TypedSet, Polarization, shape, Proposal, Instrument, DerivedObservation
+    Interval, TypedSet, Polarization, shape, Proposal, Instrument, DerivedObservation, Time
 from pkg_resources import Environment
 from setuptools.config.expand import canonic_data_files
 
@@ -127,10 +127,15 @@ class EmerlinMetadata:
         """
 
         ms_name = basename(ms_dir)
-        msmd_dict = casa.msmd_collect(ms_dir)
+        msmd_dict = casa.msmd_collect(ms_dir, pickle_dict['targets'])
+        
+        ms_other = casa.ms_other_collect(ms_dir)     
 
         plane = Plane(ms_name)
         observation.planes[ms_name] = plane
+
+        #Release date to-do convert to ivoa:datetime
+        plane.data_release = ms_other["data_release"]
 
         # Make an Energy object for this Plane
         plane.energy = Energy()
@@ -139,15 +144,25 @@ class EmerlinMetadata:
         sample = shape.SubInterval(msmd_dict["wl_lower"], msmd_dict["wl_upper"])
         plane.energy.bounds = Interval(msmd_dict["wl_lower"], msmd_dict["wl_upper"], samples=[sample])
         plane.energy.bandpass_name = str(msmd_dict["bp_name"])
-
-        # These don't break anything but also aren't printed to xml.
-        # Waiting on patch for obs_reader_writer.py
+        
+        plane.energy.sample_size = msmd_dict["chan_res"]
+        plane.energy.dimension = msmd_dict["nchan"]      
+ 
+        # This doesn't break anything but also isn't printed to xml. caom2.5?
         plane.energy.energy_bands = TypedSet('Radio')
 
+        # Plane Time Object
+        plane.time = Time()
+        
+        time_sample = shape.SubInterval(ms_other["obs_start_time"], ms_other["obs_stop_time"])
+        plane.time.bounds = Interval(ms_other["obs_start_time"], ms_other["obs_stop_time"], samples=[time_sample])
+        plane.time.exposure = msmd_dict["int_time"]
+        plane.time.dimension = msmd_dict["num_scans"]
+
         plane.polarization = Polarization()
-        # See if polarization will go in for Plane.
-        pol_states, dim = casa.get_polar(ms_dir)
-        plane.polarization.dimension = int(dim)
+        #pol_states, dim = casa.get_polar(ms_dir)
+        
+        plane.polarization.dimension = int(ms_other["polar_dim"])
 
         # This one isn't working quite right yet-- see obs_reader_writer.py
         # plane.polarization.polarization_states = pol_states
@@ -228,7 +243,8 @@ class EmerlinMetadata:
         '''
         pickle_obj = emcp2dict(self.pickle_file)
 
-        casa_info = casa.msmd_collect(self.ms_dir_main)
+        casa_info = casa.msmd_collect(self.ms_dir_main, pickle_obj['targets'])
+        casa_other = casa.ms_other_collect(self.ms_dir_main)
         observation = DerivedObservation('EMERLIN', self.obs_id, 'correlator')
 
         for tele in range(len(casa_info['antennas'])):
@@ -248,6 +264,7 @@ class EmerlinMetadata:
         observation.target_position = TargetPosition(point, 'Equatorial')
         observation.target_position.equinox = 2000.
         observation.telescope = Telescope(casa_info['tel_name'][0])
+
         observation.planes = TypedOrderedDict(Plane)
 
         plane = self.measurement_set_metadata(observation, self.ms_dir_main, pickle_obj)

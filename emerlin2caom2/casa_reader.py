@@ -4,15 +4,17 @@
 import casatools
 import math
 import numpy as np
+import datetime
 
 msmd = casatools.msmetadata()
 ms = casatools.ms()
 tb = casatools.table()
 
-def msmd_collect(ms_file):
+def msmd_collect(ms_file, targ_name):
     """
     Consolidate opening measurement set to one function
     :param ms_file: Input measurement set
+    :param targ_name: Primary target name string
     :returns msmd_elements: data structure dictionary of relevant 
     metadata
 
@@ -23,6 +25,7 @@ def msmd_collect(ms_file):
     antenna_ids = msmd.antennaids()
     field_ids = range(msmd.nfields())
 
+    first_scan = msmd.scannumbers()[0]    
 
     msmd_elements = {
         'mssources': msmd.fieldnames(),
@@ -36,23 +39,50 @@ def msmd_collect(ms_file):
         'wl_upper': msmd.chanfreqs(0)[0],
         'wl_lower': msmd.chanfreqs(nspw-1)[-1],
         'chan_res': msmd.chanwidths(0)[0],
-        'nchan'   : len(msmd.chanwidths(0)),
-        'prop_id' : msmd.projects()[0]
+        'nchan'   : nspw * len(msmd.chanwidths(0)),
+        'prop_id' : msmd.projects()[0],
+        'num_scans': len(msmd.scansforfield(targ_name)),
+        'int_time' : msmd.exposuretime(first_scan)['value']
     }
+
+    # Not sure if this is still necessary with latest merge; keep for now? 
+    nice_order = ['Lo', 'Mk2', 'Pi', 'Da', 'Kn', 'De', 'Cm']
+    refant = [a for a in nice_order if a in msmd_elements['antennas']]
+    geo = msmd.antennaposition(refant[0])
     msmd.close()
 
     # Dictionary of changes
     elements_convert = {
         'wl_upper': freq2wl(msmd_elements['wl_upper']),
         'wl_lower': freq2wl(msmd_elements['wl_lower']),
-        'chan_res': msmd_elements['chan_res']/1e9,
-        'bp_name': emerlin_band(msmd_elements['wl_upper'])
+        'chan_res': msmd_elements['chan_res']/1e9, 
+        'bp_name': emerlin_band(msmd_elements['wl_upper']),
     }
 
     # Update dictionary with converted values and additions.
     msmd_elements.update(elements_convert)
 
     return msmd_elements
+
+def ms_other_collect(ms_file):
+    """
+    Consolidate non-msmd-type opens to a second dictionary?
+    param ms_file: Input measurement set
+    returns ms_other_elements: dictionary of non-msmd-retrievable elements \
+                               which need various table/col combinations.
+    """
+
+    ms_other_elements = {
+        'data_release': get_release_date(ms_file),
+        'obs_start_time': get_obstime(ms_file)[0],
+        'obs_stop_time': get_obstime(ms_file)[1],
+        'polar_dim': get_polar(ms_file)[1]
+    }
+
+    return ms_other_elements
+
+
+# Enabler-functions for above dictionaries 
 
 def emerlin_band(freq):
     """
@@ -123,3 +153,35 @@ def polar2cart(r, theta, phi):
     y = r * math.sin(theta) * math.sin(phi)
     z = r * math.cos(theta)
     return {'x':x, 'y':y, 'z':z}
+
+def get_release_date(ms_file):
+    """
+    To do convert to ivoa:datetime
+    Retrieve data release date (not metadata release date) in mjd sec.
+    :param ms_file: Name of measurement set
+    :returns rel_date: date in mjd seconds... which is what caom wants.
+    """
+    tb.open(ms_file+'/OBSERVATION')
+    rel_date = mjdtodate(tb.getcol('RELEASE_DATE')[0]/60./60./24)
+    tb.close()
+    return rel_date
+
+def mjdtodate(mjd):
+    origin = datetime.datetime(1858,11,17)
+    date = origin + datetime.timedelta(mjd)
+    return date
+
+
+def get_obstime(ms_file):
+    """
+    Retrieve start and end time of total observation in mjd seconds.
+    :param ms_file: Name of measurement set
+    :returns t_ini, t_end: datetimes initial (or start time), \
+                           and Time End (finish time) in mjd sec
+    """
+    ms.open(ms_file)
+    t = ms.getdata('TIME')['time']
+    t_ini = np.min(t)
+    t_end = np.max(t)
+    ms.close()
+    return t_ini, t_end
