@@ -272,11 +272,13 @@ class EmerlinMetadata:
             observation.planes[plane_target] = plane
             plane_id_list.append(plane_target)
 
-        plane = Plane(self.ms_dir_main)
-        observation.planes[self.ms_dir_main] = plane
-        plane_id_list.append(self.ms_dir_main)
+        ms_plane_id = basename(self.ms_dir_main)
 
-        self.measurement_set_metadata(observation, self.ms_dir_main, pickle_obj, self.ms_dir_main)
+        plane = Plane(ms_plane_id)
+        observation.planes[ms_plane_id] = plane
+        plane_id_list.append(ms_plane_id)
+
+        self.measurement_set_metadata(observation, self.ms_dir_main, pickle_obj, ms_plane_id)
 
         for directory in os.listdir(self.storage_name + '/weblog/plots/'):
             for plots in os.listdir(self.storage_name + '/weblog/plots/' + directory + '/'):
