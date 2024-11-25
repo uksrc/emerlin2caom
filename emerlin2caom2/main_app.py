@@ -267,7 +267,7 @@ class EmerlinMetadata:
         observation.planes = TypedOrderedDict(Plane)
 
         plane_id_list = []
-        for plane_target in pickle_obj['mssources']:
+        for plane_target in casa_info['mssources']:
             plane = Plane(plane_target)
             observation.planes[plane_target] = plane
             plane_id_list.append(plane_target)
