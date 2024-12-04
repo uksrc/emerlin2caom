@@ -304,9 +304,6 @@ class EmerlinMetadata:
 
         ms_plane_id = basename(self.ms_dir_main)
 
-        if len(ms_plane_id) > 64:
-            ms_plane_id = ms_plane_id[len(ms_plane_id)-64:]
-
         plane = Plane(ms_plane_id)
         observation.planes[ms_plane_id] = plane
         plane_id_list.append(ms_plane_id)
