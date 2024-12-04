@@ -69,13 +69,14 @@ class EmerlinMetadata:
     ms_dir_main = storage_name + '/{}_avg.ms'.format(obs_id)  # maybe flimsy? depends on the rigidity of the em pipeline
     pickle_file = storage_name + '/weblog/info/eMCP_info.txt'
 
-    def artifact_metadata(self, plane, artifact_full_name, plots):
+    def artifact_metadata(self, observation, plane_id, artifact_full_name, plots):
         """
         Creates metadata for physical artifacts, including type, size and hash value
         :param plane: plane to add artifact metadata to
         :param artifact_full_name: full location of target object
         :param plots: name of artifact only, no path
         """
+        plane = observation.planes[plane_id]
         artifact = Artifact('uri:{}'.format(plots), ProductType.AUXILIARY, ReleaseType.DATA)
         plane.artifacts['uri:{}'.format(plots)] = artifact
         meta_data = msmd.get_local_file_info(artifact_full_name)
@@ -84,7 +85,7 @@ class EmerlinMetadata:
         artifact.content_length = meta_data.size
         artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
 
-    def fits_plane_metadata(self, observation, fits_full_name, images):
+    def fits_plane_metadata(self, observation, fits_full_name, images, plane_id):
         """
         Creates metadata for fits files, currently includes only basic information with scope to add more
         :param observation: Class to add metadata to
@@ -93,8 +94,7 @@ class EmerlinMetadata:
         :returns: plane created for fits file to be passed to the artifact function
         """
 
-        plane = Plane(images)
-        observation.planes[images] = plane
+        plane = observation.planes[plane_id]
         fits_header_data = fr.header_extraction(fits_full_name + images)
 
         position = Position()
@@ -115,9 +115,8 @@ class EmerlinMetadata:
         plane.provenance = provenance
         provenance.version = fits_header_data['wsc_version']
 
-        return plane
 
-    def measurement_set_metadata(self, observation, ms_dir, pickle_dict):
+    def measurement_set_metadata(self, observation, ms_dir, pickle_dict, plane_id):
         """
         Creates metadata for measurement sets, extracting infomation from the ms itself, as well as the pickle file
         :param observation:  Class to add metadata to
@@ -131,8 +130,8 @@ class EmerlinMetadata:
         
         ms_other = casa.ms_other_collect(ms_dir)     
 
-        plane = Plane(ms_name)
-        observation.planes[ms_name] = plane
+        # plane = Plane(ms_name)
+        plane = observation.planes[plane_id]
 
         #Release date to-do convert to ivoa:datetime
         plane.data_release = ms_other["data_release"]
@@ -267,28 +266,44 @@ class EmerlinMetadata:
 
         observation.planes = TypedOrderedDict(Plane)
 
-        plane = self.measurement_set_metadata(observation, self.ms_dir_main, pickle_obj)
+        plane_id_list = []
+        for plane_target in casa_info['mssources']:
+            plane = Plane(plane_target)
+            observation.planes[plane_target] = plane
+            plane_id_list.append(plane_target)
+
+        ms_plane_id = basename(self.ms_dir_main)
+
+        plane = Plane(ms_plane_id)
+        observation.planes[ms_plane_id] = plane
+        plane_id_list.append(ms_plane_id)
+
+        self.measurement_set_metadata(observation, self.ms_dir_main, pickle_obj, ms_plane_id)
 
         for directory in os.listdir(self.storage_name + '/weblog/plots/'):
             for plots in os.listdir(self.storage_name + '/weblog/plots/' + directory + '/'):
                 plot_full_name = self.storage_name + '/weblog/plots/' + directory + '/' + plots
-                self.artifact_metadata(plane, plot_full_name, plots)
+                plane_id_single = [x for x in plane_id_list if x in plots]
+                if plane_id_single:
+                    self.artifact_metadata(observation, plane_id_single[0], plot_full_name, plots)
 
         for directory in os.listdir(self.storage_name + '/weblog/images/'):
             main_fits = [x for x in os.listdir(self.storage_name + '/weblog/images/' + directory + '/') if x.endswith('-image.fits')]
             plane_id_full = self.storage_name + '/weblog/images/' + directory + '/'
             if main_fits:
-                plane = self.fits_plane_metadata(observation, plane_id_full, main_fits[0])
+                plane_id_single = [x for x in plane_id_list if x in directory]
+                self.fits_plane_metadata(observation, plane_id_full, main_fits[0], plane_id_single[0])
                  # will this break?
                 for images in os.listdir(self.storage_name + '/weblog/images/' + directory + '/'):
                     images_full_name = self.storage_name + '/weblog/images/' + directory + '/' + images
-                    self.artifact_metadata(plane, images_full_name, images)
+                    self.artifact_metadata(observation, plane_id_single[0], images_full_name, images)
 
         for directory in os.listdir(self.storage_name + '/splits/'):
             extension = directory.split('.')[-1]
             if extension == 'ms':
                 plane_id_full = self.storage_name + '/splits/' + directory + '/'
-                self.measurement_set_metadata(observation, plane_id_full, pickle_obj)
+                plane_id_single = [x for x in plane_id_list if x in directory]
+                self.measurement_set_metadata(observation, plane_id_full, pickle_obj, plane_id_single[0])
         # currently not handling flag_versions as casa will not read "ms1" version measurement sets
         
         # removed for now but this structure can be used for auxiliary measurement sets in future
