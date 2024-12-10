@@ -188,11 +188,10 @@ class EmerlinMetadata:
 
         # adjustment for different pipeline versions
         pipeline_name = pickle_dict['pipeline_path'].split('/')[-1]
-        if  len(pipeline_name) ==0:
-            pipeline_name = pickle_dict['pipeline_path']
-            print(pipeline_name)
-            if len(pipeline_name) >= 64:
-                pipeline_name = uri_shortening(pipeline_name)
+        if len(pipeline_name) == 0:
+            pipeline_name = pickle_dict['pipeline_path'].split('/')[-2]
+        if len(pipeline_name) >= 64:
+            pipeline_name = uri_shortening(pipeline_name)
 
         provenance = Provenance(pipeline_name)
         plane.provenance = provenance
