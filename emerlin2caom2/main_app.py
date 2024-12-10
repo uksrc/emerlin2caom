@@ -52,7 +52,7 @@ def basename(name):
 
 
 def uri_shortening(long_uri):
-    short_uri = long_uri[len(long_uri)-65:]
+    short_uri = long_uri[len(long_uri)-64:]
     return short_uri
 
 
@@ -369,7 +369,10 @@ class EmerlinMetadata:
         if set_f.upload:
             self.request_put(xml_output_name)
             if set_f.replace_old_data:
-                self.request_post(xml_output_name)
+                try:
+                    self.request_post(xml_output_name)
+                except:
+                      pass
             else:
                 # self.request_delete(xml_output_name.split('/')[-1])
                 self.request_put(xml_output_name)
