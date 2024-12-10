@@ -147,7 +147,7 @@ class EmerlinMetadata:
 
         ms_name = basename(ms_dir)
         msmd_dict = casa.msmd_collect(ms_dir, pickle_dict['targets'])
-        
+
         ms_other = casa.ms_other_collect(ms_dir)     
 
         # plane = Plane(ms_name)
@@ -186,7 +186,15 @@ class EmerlinMetadata:
         # This one isn't working quite right yet-- see obs_reader_writer.py
         # plane.polarization.polarization_states = pol_states
 
-        provenance = Provenance(pickle_dict['pipeline_path'].split('/')[-1])
+        # adjustment for different pipeline versions
+        pipeline_name = pickle_dict['pipeline_path'].split('/')[-1]
+        if  len(pipeline_name) ==0:
+            pipeline_name = pickle_dict['pipeline_path']
+            print(pipeline_name)
+            if len(pipeline_name) >= 64:
+                pipeline_name = uri_shortening(pipeline_name)
+
+        provenance = Provenance(pipeline_name)
         plane.provenance = provenance
         provenance.version = pickle_dict['pipeline_version']
         provenance.project = msmd_dict['prop_id']
@@ -256,9 +264,12 @@ class EmerlinMetadata:
         writer.write(observation, xml_output_name)
 
         if set_f.upload:
-            if set_f.replace_old_data:
-                self.request_delete(xml_output_name.split('/')[-1])
             self.request_put(xml_output_name)
+            if set_f.replace_old_data:
+                self.request_post(xml_output_name)
+                # self.request_delete(xml_output_name.split('/')[-1])
+            else:
+                self.request_put(xml_output_name)
 
 
         return observation
@@ -359,18 +370,35 @@ class EmerlinMetadata:
         writer.write(observation, xml_output_name)
 
         if set_f.upload:
-            if set_f.replace_old_data:
-                self.request_delete(xml_output_name.split('/')[-1])
             self.request_put(xml_output_name)
+            if set_f.replace_old_data:
+                self.request_post(xml_output_name)
+            else:
+                # self.request_delete(xml_output_name.split('/')[-1])
+                self.request_put(xml_output_name)
 
 
     def request_put(self, xml_output_name):
-        url_put = self.base_url + '/' + xml_output_name.split('/')[-1].split('.')[0]
-        print(url_put)
+        xml_output_name = xml_output_name
+        url_put = self.base_url + '/' + xml_output_name.split('/')[-1].split('.')[0].rstrip()
+        print(repr(url_put))
         put_file = xml_output_name
         headers_put = {'authorization' : 'bearer {}'.format(self.ska_token), 'Content-type': 'text/xml'}
         res = requests.put(url_put, data=open(put_file, 'rb'), verify=self.rootca, headers=headers_put)
         print(res, res.content)
+
+    def request_post(self, xml_output_name):
+        xml_output_name = xml_output_name.rstrip()
+        url_post = self.base_url + '/' + xml_output_name.split('/')[-1].split('.')[0].rstrip()
+        print(repr(url_post))
+        post_file = xml_output_name
+        print(post_file)
+        headers_post = {'authorization': 'bearer {}'.format(self.ska_token), 'Content-type': 'text/xml'}
+        res = requests.post(url_post, data=open(post_file, 'rb'), verify=self.rootca, headers=headers_post)
+        print(res, res.content)
+        print("URL:", url_post)
+        print("Response Code:", res.status_code)
+        print("Response Text:", res.text)
 
     def request_delete(self, to_del):
         url_del = self.base_url + '/' + to_del.split('/')[-1].split('.')[0]
