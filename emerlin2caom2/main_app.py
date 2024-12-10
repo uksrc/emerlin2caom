@@ -263,14 +263,17 @@ class EmerlinMetadata:
         writer.write(observation, xml_output_name)
 
         if set_f.upload:
-            self.request_put(xml_output_name)
             if set_f.replace_old_data:
-                try:
-                    self.request_post(xml_output_name)
-                except requests.exceptions.RequestException:
-                      pass
-            else:
-                self.request_put(xml_output_name)
+                self.request_delete(xml_output_name)
+            self.request_put(xml_output_name)
+            # self.request_put(xml_output_name)
+            # if set_f.replace_old_data:
+            #     try:
+            #         self.request_post(xml_output_name)
+            #     except requests.exceptions.RequestException:
+            #           pass
+            # else:
+            #     self.request_put(xml_output_name)
 
 
         return observation
@@ -368,14 +371,17 @@ class EmerlinMetadata:
         writer.write(observation, xml_output_name)
 
         if set_f.upload:
-            self.request_put(xml_output_name)
             if set_f.replace_old_data:
-                try:
-                    self.request_post(xml_output_name)
-                except requests.exceptions.RequestException:
-                      pass
-            else:
-                self.request_put(xml_output_name)
+                self.request_delete(xml_output_name)
+            self.request_put(xml_output_name)
+            # self.request_put(xml_output_name)
+            # if set_f.replace_old_data:
+            #     try:
+            #         self.request_post(xml_output_name)
+            #     except requests.exceptions.RequestException:
+            #           pass
+            # else:
+            #     self.request_put(xml_output_name)
 
 
     def request_put(self, xml_output_name):
