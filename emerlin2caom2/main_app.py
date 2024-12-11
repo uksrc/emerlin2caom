@@ -1,6 +1,5 @@
-import pickle
 import os
-import subprocess
+import requests
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
     ReleaseType, ObservationWriter, ProductType, ChecksumURI, Provenance, Position, Point, Energy, TargetPosition, \
@@ -52,6 +51,11 @@ def basename(name):
     return base_name
 
 
+def uri_shortening(long_uri):
+    short_uri = long_uri[len(long_uri)-64:]
+    return short_uri
+
+
 class EmerlinMetadata:
     """
     Populates an XML document with caom format metadata, extracted from an input measurement set.
@@ -63,8 +67,10 @@ class EmerlinMetadata:
     xml_out_dir = set_f.xmldir
     if xml_out_dir[-1] != '/':
         xml_out_dir += '/'
-    # rootca = set.rootca
-    # ska_token = set.ska_token
+
+    base_url = 'https://src-data-repo.co.uk/torkeep/observations/EMERLIN'
+    rootca = set_f.rootca
+    ska_token = set_f.ska_token
     obs_id = basename(storage_name)
     ms_dir_main = storage_name + '/{}_avg.ms'.format(obs_id)  # maybe flimsy? depends on the rigidity of the em pipeline
     pickle_file = storage_name + '/weblog/info/eMCP_info.txt'
@@ -77,13 +83,19 @@ class EmerlinMetadata:
         :param plots: name of artifact only, no path
         """
         plane = observation.planes[plane_id]
-        artifact = Artifact('uri:{}'.format(plots), ProductType.AUXILIARY, ReleaseType.DATA)
-        plane.artifacts['uri:{}'.format(plots)] = artifact
+        art_uri = 'uri:{}'.format(plots)
+        if len(art_uri) > 64:
+            print('uri_shortening')
+            art_uri = uri_shortening(art_uri)
+
+        artifact = Artifact(art_uri, ProductType.AUXILIARY, ReleaseType.DATA)
+        plane.artifacts[art_uri] = artifact
         meta_data = msmd.get_local_file_info(artifact_full_name)
 
         artifact.content_type = meta_data.file_type
         artifact.content_length = meta_data.size
         artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
+
 
     def fits_plane_metadata(self, observation, fits_full_name, images, plane_id):
         """
@@ -99,7 +111,12 @@ class EmerlinMetadata:
 
         position = Position()
         plane.position = position
-        centre = Point(fits_header_data['ra_deg'], fits_header_data['dec_deg'])
+        ra_pos = fits_header_data['ra_deg']
+        print(ra_pos)
+        if ra_pos < 0:
+            ra_pos += 360 # Does this make sense for converting negative to positive ra? should it just be the absolute?
+        dec_pos = fits_header_data['dec_deg']
+        centre = Point(ra_pos, dec_pos)
         width = abs(fits_header_data['pix_width'] * fits_header_data['pix_width_scale'])
         height = abs(fits_header_data['pix_length'] * fits_header_data['pix_length_scale'])
         radius = 0.5 * width
@@ -110,6 +127,9 @@ class EmerlinMetadata:
         energy = Energy()
         plane.energy = energy
         plane.energy.restwav = casa.freq2wl(fits_header_data['central_freq'])  # change freq to wav and check against model
+
+        if len(images) > 64:
+            images = uri_shortening(images)
 
         provenance = Provenance(images)
         plane.provenance = provenance
@@ -127,7 +147,7 @@ class EmerlinMetadata:
 
         ms_name = basename(ms_dir)
         msmd_dict = casa.msmd_collect(ms_dir, pickle_dict['targets'])
-        
+
         ms_other = casa.ms_other_collect(ms_dir)     
 
         # plane = Plane(ms_name)
@@ -166,7 +186,14 @@ class EmerlinMetadata:
         # This one isn't working quite right yet-- see obs_reader_writer.py
         # plane.polarization.polarization_states = pol_states
 
-        provenance = Provenance(pickle_dict['pipeline_path'])
+        # adjustment for different pipeline versions
+        pipeline_name = pickle_dict['pipeline_path'].split('/')[-1]
+        if len(pipeline_name) == 0:
+            pipeline_name = pickle_dict['pipeline_path'].split('/')[-2]
+        if len(pipeline_name) >= 64:
+            pipeline_name = uri_shortening(pipeline_name)
+
+        provenance = Provenance(pipeline_name)
         plane.provenance = provenance
         provenance.version = pickle_dict['pipeline_version']
         provenance.project = msmd_dict['prop_id']
@@ -174,8 +201,13 @@ class EmerlinMetadata:
 
         plane.artifacts = TypedOrderedDict(Artifact)
 
-        artifact = Artifact('uri:{}'.format(ms_name), ProductType.SCIENCE, ReleaseType.DATA)
-        plane.artifacts['uri:{}'.format(ms_name)] = artifact
+        art_uri = 'uri:{}'.format(ms_name)
+        if len(art_uri) > 64:
+            print('uri_shortening')
+            art_uri = uri_shortening(art_uri)
+
+        artifact = Artifact(art_uri, ProductType.SCIENCE, ReleaseType.DATA)
+        plane.artifacts[art_uri] = artifact
 
         meta_data = msmd.get_local_file_info(ms_dir)
 
@@ -230,8 +262,21 @@ class EmerlinMetadata:
         writer = ObservationWriter()
         writer.write(observation, xml_output_name)
 
-        return observation
+        if set_f.upload:
+            if set_f.replace_old_data:
+                self.request_delete(xml_output_name)
+            self.request_put(xml_output_name)
+            # self.request_put(xml_output_name)
+            # if set_f.replace_old_data:
+            #     try:
+            #         self.request_post(xml_output_name)
+            #     except requests.exceptions.RequestException:
+            #           pass
+            # else:
+            #     self.request_put(xml_output_name)
 
+
+        return observation
 
 
     def build_metadata(self):
@@ -325,6 +370,54 @@ class EmerlinMetadata:
         writer = ObservationWriter()
         writer.write(observation, xml_output_name)
 
+        if set_f.upload:
+            if set_f.replace_old_data:
+                self.request_delete(xml_output_name)
+            self.request_put(xml_output_name)
+            # self.request_put(xml_output_name)
+            # if set_f.replace_old_data:
+            #     try:
+            #         self.request_post(xml_output_name)
+            #     except requests.exceptions.RequestException:
+            #           pass
+            # else:
+            #     self.request_put(xml_output_name)
+
+
+    def request_put(self, xml_output_name):
+        xml_output_name = xml_output_name
+        url_put = self.base_url + '/' + xml_output_name.split('/')[-1].split('.')[0].rstrip()
+        print(repr(url_put))
+        put_file = xml_output_name
+        headers_put = {'authorization' : 'bearer {}'.format(self.ska_token), 'Content-type': 'text/xml'}
+        res = requests.put(url_put, data=open(put_file, 'rb'), verify=self.rootca, headers=headers_put)
+        print(res, res.content)
+
+    def request_post(self, xml_output_name):
+        xml_output_name = xml_output_name.rstrip()
+        url_post = self.base_url + '/' + xml_output_name.split('/')[-1].split('.')[0].rstrip()
+        print(repr(url_post))
+        post_file = xml_output_name
+        print(post_file)
+        headers_post = {'authorization': 'bearer {}'.format(self.ska_token), 'Content-type': 'text/xml'}
+        res = requests.post(url_post, data=open(post_file, 'rb'), verify=self.rootca, headers=headers_post)
+        print(res, res.content)
+        print("URL:", url_post)
+        print("Response Code:", res.status_code)
+        print("Response Text:", res.text)
+
+    def request_delete(self, to_del):
+        url_del = self.base_url + '/' + to_del.split('/')[-1].split('.')[0]
+        print(url_del)
+        headers_del = {'authorization' : 'bearer {}'.format(self.ska_token)}
+        res = requests.delete(url_del, verify=self.rootca, headers=headers_del)
+        print(res)
+
+    def request_get(self, file_to_get=''):
+        url_get = self.base_url + '/' + file_to_get
+        print(url_get)
+        res = requests.get(url_get, verify=self.rootca)
+        print(res)
 
 
 
