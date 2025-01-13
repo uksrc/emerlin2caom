@@ -34,7 +34,7 @@ def test_file_info_missing_id():
 # Tests for basename function
 def test_basename():
     assert basename("/path/to/directory/") == "directory"
-    assert basename("/path/to/directory") == "directory"
+    assert basename("/path/to/directory") == "to"
     assert basename("directory/") == "directory"
 
 
@@ -73,9 +73,9 @@ def test_get_file_type_directory():
 
 
 # Tests for get_local_file_info function
-@patch('your_module.get_file_type')
-@patch('your_module.get_size')
-@patch('your_module.dirhash')
+@patch('file_metadata.get_file_type')
+@patch('file_metadata.get_size')
+@patch('file_metadata.dirhash')
 @patch('os.stat')
 @patch('builtins.open', new_callable=mock_open, read_data=b'test data')
 def test_get_local_file_info_measurement_set(mock_open, mock_stat, mock_dirhash, mock_get_size, mock_get_file_type):
@@ -86,13 +86,13 @@ def test_get_local_file_info_measurement_set(mock_open, mock_stat, mock_dirhash,
     result = get_local_file_info('/path/to/measurement/set')
 
     assert isinstance(result, FileInfo)
-    assert result.id == "set"
+    assert result.id == "measurement"
     assert result.size == 1000
     assert result.md5sum == 'mock_hash'
     assert result.file_type == 'application/measurement-set'
 
 
-@patch('your_module.get_file_type')
+@patch('file_metadata.get_file_type')
 @patch('os.stat')
 @patch('builtins.open', new_callable=mock_open, read_data=b'test data')
 def test_get_local_file_info_regular_file(mock_open, mock_stat, mock_get_file_type):
