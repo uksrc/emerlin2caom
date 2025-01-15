@@ -54,6 +54,7 @@ pip install astropy=4.5.1
 pip install casatools
 pip install checksumdir
 pip install caom2 --ignore-requires-python
+pip install pytest
 ```
 Download the github repositories [cadcutils](https://github.com/opencadc/cadctools/tree/main/cadcutils) and 
 [caom2tools](https://github.com/opencadc/caom2tools/tree/main), change directories to each of their respective download 

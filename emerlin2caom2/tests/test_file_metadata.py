@@ -4,7 +4,6 @@ from datetime import datetime
 from unittest.mock import patch, mock_open
 from hashlib import md5
 
-# Import the functions and classes from your module
 from file_metadata import FileInfo, basename, get_size, get_file_type, get_local_file_info
 
 

@@ -2,7 +2,7 @@ import pytest
 from astropy.io import fits
 from astropy.io.fits.header import Header
 from unittest.mock import patch, MagicMock
-from fits_reader import header_extraction  # Replace 'your_module' with the actual module name
+from fits_reader import header_extraction
 
 
 @pytest.fixture
