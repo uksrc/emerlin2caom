@@ -71,3 +71,13 @@ There is a simple test included in "test.py", the xml should be produced but the
 permission denied with the current repository setup. 
 Change the input values within the file as necessary
 
+## Alternative installation of  CASA
+
+The casa source is here
+https://open-bitbucket.nrao.edu/projects/CASA/repos/casa6/browse
+
+can install wheels from https://casa-pip.nrao.edu/repository/pypi-casa-release/
+
+pip install casatools --extra-index-url https://casa-pip.nrao.edu/repository/pypi-casa-release/
+
+
