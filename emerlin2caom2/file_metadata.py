@@ -42,6 +42,9 @@ def basename(name):
     :param name: Full path to directory
     :returns: Name of the directory, without path
     """
+    # if name[-1] == '/':
+    #    name += '/'
+    # The if statement above may need to be included for directories with the filename at the end
     base_name = os.path.dirname(name).split('/')[-1]
     return base_name
 
