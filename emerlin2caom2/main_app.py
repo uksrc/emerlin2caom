@@ -175,7 +175,7 @@ class EmerlinMetadata:
         
         time_sample = shape.SubInterval(ms_other["obs_start_time"], ms_other["obs_stop_time"])
         plane.time.bounds = Interval(ms_other["obs_start_time"], ms_other["obs_stop_time"], samples=[time_sample])
-        plane.time.exposure = msmd_dict["int_time"]
+        #plane.time.exposure = msmd_dict["int_time"]
         #plane.time.dimension = msmd_dict["num_scans"]
 
         plane.polarization = Polarization()

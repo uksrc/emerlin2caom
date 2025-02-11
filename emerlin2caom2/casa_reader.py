@@ -44,7 +44,7 @@ def msmd_collect(ms_file, targ_name):
         'chan_res': msmd.chanwidths(0)[0],
         'nchan'   : nspw * len(msmd.chanwidths(0)),
         'prop_id' : msmd.projects()[0],
-       # 'num_scans': [len(msmd.scansforfield(x)) for x in targ_names],
+        #'num_scans': len(msmd.scansforfield(targets[0])),
         'int_time' : msmd.exposuretime(first_scan)['value']
     }
 
@@ -58,7 +58,7 @@ def msmd_collect(ms_file, targ_name):
     elements_convert = {
         'wl_upper': freq2wl(msmd_elements['wl_upper']),
         'wl_lower': freq2wl(msmd_elements['wl_lower']),
-        'chan_res': msmd_elements['chan_res']/1e9, 
+        'chan_res': freq2wl(msmd_elements['chan_res']), 
         'bp_name': emerlin_band(msmd_elements['wl_upper']),
     }
 
