@@ -106,7 +106,11 @@ def emerlin_band(freq):
     return band
 
 def freq2wl(freq):
-    # Convert frequency (Hz) to wavelength (m)
+    """
+    Convert frequency (Hz) to wavelength (m)
+    :param freq: Frequency to convert
+    :returns: wavelength
+    """
     sol = 299792458
     wl = sol/freq
     return wl
@@ -115,7 +119,7 @@ def get_polar(ms_file):
     """
     Get polarisation state
     :param ms_file: Name of measurement set
-    :returns: polarization type and number of dimensions.
+    :returns: polarisation type and number of dimensions.
     """
     tb.open(ms_file+'/FEED')
     polarization = tb.getcol('POLARIZATION_TYPE')
@@ -153,6 +157,11 @@ def target_position(ms_file, target):
     return [source_coords_ra, source_coords_dec]
   
 def polar2cart(r, theta, phi):
+    """
+    Convert frequency (Hz) to wavelength (m)
+    :param freq: Frequency to convert
+    :returns: wavelength
+    """
     x = r * math.sin(theta) * math.cos(phi)
     y = r * math.sin(theta) * math.sin(phi)
     z = r * math.cos(theta)
@@ -171,6 +180,11 @@ def get_release_date(ms_file):
     return rel_date
 
 def mjdtodate(mjd):
+    """
+    Converts date from MJD to the conventional format
+    :param mjd: date in mjd
+    :returns: date in pedestrian format
+    """
     origin = datetime.datetime(1858,11,17)
     date = origin + datetime.timedelta(mjd)
     return date

@@ -2,6 +2,11 @@ from astropy.io import fits
 
 
 def header_extraction(fits_file):
+    """
+    Function to extract CAOM relevant metadata from fits files.
+    :param fits_file: name and location of fits file
+    :returns: dictionary of metadata
+    """
     hdu = fits.open(fits_file)
     newhead = hdu[0].header
 

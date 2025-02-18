@@ -1,4 +1,6 @@
 import os
+from os.path import exists
+from pathlib import Path
 import requests
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
@@ -50,12 +52,6 @@ def basename(name):
         base_name = name.split('/')[-1]
     return base_name
 
-
-def uri_shortening(long_uri):
-    short_uri = long_uri[len(long_uri)-64:]
-    return short_uri
-
-
 class EmerlinMetadata:
     """
     Populates an XML document with caom format metadata, extracted from an input measurement set.
@@ -73,6 +69,7 @@ class EmerlinMetadata:
     ska_token = set_f.ska_token
     obs_id = basename(storage_name)
     ms_dir_main = storage_name + '/{}_avg.ms'.format(obs_id)  # maybe flimsy? depends on the rigidity of the em pipeline
+    ms_dir_spectral = storage_name + '/{}_sp.ms'.format(obs_id)
     pickle_file = storage_name + '/weblog/info/eMCP_info.txt'
 
     def artifact_metadata(self, observation, plane_id, artifact_full_name, plots):
@@ -84,9 +81,6 @@ class EmerlinMetadata:
         """
         plane = observation.planes[plane_id]
         art_uri = 'uri:{}'.format(plots)
-        if len(art_uri) > 64:
-            print('uri_shortening')
-            art_uri = uri_shortening(art_uri)
 
         artifact = Artifact(art_uri, ProductType.AUXILIARY, ReleaseType.DATA)
         plane.artifacts[art_uri] = artifact
@@ -127,9 +121,6 @@ class EmerlinMetadata:
         energy = Energy()
         plane.energy = energy
         plane.energy.restwav = casa.freq2wl(fits_header_data['central_freq'])  # change freq to wav and check against model
-
-        if len(images) > 64:
-            images = uri_shortening(images)
 
         provenance = Provenance(images)
         plane.provenance = provenance
@@ -190,8 +181,6 @@ class EmerlinMetadata:
         pipeline_name = pickle_dict['pipeline_path'].split('/')[-1]
         if len(pipeline_name) == 0:
             pipeline_name = pickle_dict['pipeline_path'].split('/')[-2]
-        if len(pipeline_name) >= 64:
-            pipeline_name = uri_shortening(pipeline_name)
 
         provenance = Provenance(pipeline_name)
         plane.provenance = provenance
@@ -202,9 +191,6 @@ class EmerlinMetadata:
         plane.artifacts = TypedOrderedDict(Artifact)
 
         art_uri = 'uri:{}'.format(ms_name)
-        if len(art_uri) > 64:
-            print('uri_shortening')
-            art_uri = uri_shortening(art_uri)
 
         artifact = Artifact(art_uri, ProductType.SCIENCE, ReleaseType.DATA)
         plane.artifacts[art_uri] = artifact
@@ -280,11 +266,11 @@ class EmerlinMetadata:
 
 
     def build_metadata(self):
-        '''
+        """
         Builds metadata for e-merlin pipeline output, including main and calibration measurement sets, fits images,
         plots and pickle file metadata. The target measurement set and output destination are defined within the
         settings_file.py.
-        '''
+        """
         pickle_obj = emcp2dict(self.pickle_file)
 
         casa_info = casa.msmd_collect(self.ms_dir_main, pickle_obj['targets'])
@@ -318,11 +304,9 @@ class EmerlinMetadata:
             plane_id_list.append(plane_target)
 
         ms_plane_id = basename(self.ms_dir_main)
-
         plane = Plane(ms_plane_id)
         observation.planes[ms_plane_id] = plane
         plane_id_list.append(ms_plane_id)
-
         self.measurement_set_metadata(observation, self.ms_dir_main, pickle_obj, ms_plane_id)
 
         for directory in os.listdir(self.storage_name + '/weblog/plots/'):
@@ -383,41 +367,65 @@ class EmerlinMetadata:
             # else:
             #     self.request_put(xml_output_name)
 
+    def url_maker(self, xml_output_name):
+        """
+        Construction of a URL to be used within a request to the torkeep service.
+        :param xml_output_name: ObservationID of object to be targeted by URL
+        :returns: URL of the target object and target torkeep collection
+        """
+        made_url = self.base_url + '/' + '.'.join(xml_output_name.split('/')[-1].split('.')[:-1]).rstrip()
+        return made_url
 
     def request_put(self, xml_output_name):
+        """
+        Put target XML data onto the database.
+        :param xml_output_name: ObservationID of xml file to put
+        """
         xml_output_name = xml_output_name
-        url_put = self.base_url + '/' + xml_output_name.split('/')[-1].split('.')[0].rstrip()
-        print(repr(url_put))
+        url_put = self.url_maker(xml_output_name)
+        print(repr(url_put)) # can remove once code no longer needs debugging
         put_file = xml_output_name
         headers_put = {'authorization' : 'bearer {}'.format(self.ska_token), 'Content-type': 'text/xml'}
         res = requests.put(url_put, data=open(put_file, 'rb'), verify=self.rootca, headers=headers_put)
-        print(res, res.content)
+        print(res, res.content) # can remove once code no longer needs debugging
 
     def request_post(self, xml_output_name):
+        """
+        Post target XML data to the database.
+        :param xml_output_name: ObservationID of target xml data
+        """
         xml_output_name = xml_output_name.rstrip()
-        url_post = self.base_url + '/' + xml_output_name.split('/')[-1].split('.')[0].rstrip()
-        print(repr(url_post))
+        url_post = self.url_maker(xml_output_name)
+        print(repr(url_post)) # can remove once code no longer needs debugging
         post_file = xml_output_name
-        print(post_file)
+        print(post_file) # can remove once code no longer needs debugging
         headers_post = {'authorization': 'bearer {}'.format(self.ska_token), 'Content-type': 'text/xml'}
         res = requests.post(url_post, data=open(post_file, 'rb'), verify=self.rootca, headers=headers_post)
-        print(res, res.content)
-        print("URL:", url_post)
-        print("Response Code:", res.status_code)
-        print("Response Text:", res.text)
+        print(res, res.content) # can remove once code no longer needs debugging
+        print("URL:", url_post) # can remove once code no longer needs debugging
+        print("Response Code:", res.status_code) # can remove once code no longer needs debugging
+        print("Response Text:", res.text) # can remove once code no longer needs debugging
 
     def request_delete(self, to_del):
-        url_del = self.base_url + '/' + to_del.split('/')[-1].split('.')[0]
-        print(url_del)
+        """
+        Deletes target XML data on the database.
+        :param to_del: ObservationID of target data to delete
+        """
+        url_del = self.url_maker(to_del)
+        print(url_del) # can remove once code no longer needs debugging
         headers_del = {'authorization' : 'bearer {}'.format(self.ska_token)}
         res = requests.delete(url_del, verify=self.rootca, headers=headers_del)
-        print(res)
+        print(res) # can remove once code no longer needs debugging
 
     def request_get(self, file_to_get=''):
+        """
+        Get target data from database.
+        :param file_to_get: ObservationID of file to get
+        """
         url_get = self.base_url + '/' + file_to_get
-        print(url_get)
+        print(url_get) # can remove once code no longer needs debugging
         res = requests.get(url_get, verify=self.rootca)
-        print(res)
+        print(res) # can remove once code no longer needs debugging
 
 
 
