@@ -330,15 +330,17 @@ class EmerlinMetadata:
             if len(pipeline_name) == 0:
                 pipeline_name = self.pickle_obj['pipeline_path'].split('/')[-2]
             provenance = Provenance(pipeline_name)
+            print(self.roles[plane_target])
+            # provenance.keywords = "Role of plane {}".format(self.roles[plane_target]) # can't set for some reason
             plane.provenance = provenance
             provenance.version = self.pickle_obj['pipeline_version']
             provenance.run_id = self.pickle_obj['run']
-            provenance.keywords = "Role of plane {}".format(self.roles[plane_target])
+
             plane_id_list.append(plane_target)
 
         ms_plane_id = basename(self.ms_dir_main)
         plane = Plane(ms_plane_id)
-        plane.data_product_type = DataProductType('measurement')
+        plane.data_product_type = DataProductType('measurements')
         observation.planes[ms_plane_id] = plane
         plane_id_list.append(ms_plane_id)
         self.measurement_set_metadata(observation, self.ms_dir_main, ms_plane_id)
