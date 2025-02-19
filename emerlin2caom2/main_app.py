@@ -207,7 +207,7 @@ class EmerlinMetadata:
         # provenance.keywords = str([key for key, value in pickle_obj['input_steps'].items() if value == 1])
 
 
-    def build_simple_observation(self, casa_info, pickle_dict, ante_id):
+    def build_simple_observation_telescope(self, casa_info, pickle_dict, ante_id):
         """
         :param casa_info: dictionary of metadata extracted from measurement set
         :param pickle_dict: dictionary of metadata extracted from the text version of the pickle file
@@ -217,17 +217,6 @@ class EmerlinMetadata:
         observation = SimpleObservation('EMERLIN', '{}_{}'.format(self.obs_id, casa_info['antennas'][int(ante_id)]))
         observation.obs_type = 'science'
         observation.intent = ObservationIntentType.SCIENCE
-
-
-        target_name = pickle_dict['targets']
-        target_pos = casa.target_position(self.ms_dir_main, target_name)
-        point = Point(target_pos[0], target_pos[1])
-
-        observation.target = Target('TBD')
-        observation.target.name = target_name
-        observation.target_position = TargetPosition(point, 'Equatorial') # J2000?
-        observation.target_position.equinox = 2000.
-
 
         observation.telescope = Telescope(casa_info['tel_name'][0])
         observation.proposal = Proposal(casa_info['prop_id'])
@@ -252,15 +241,39 @@ class EmerlinMetadata:
             if set_f.replace_old_data:
                 self.request_delete(xml_output_name)
             self.request_put(xml_output_name)
-            # self.request_put(xml_output_name)
-            # if set_f.replace_old_data:
-            #     try:
-            #         self.request_post(xml_output_name)
-            #     except requests.exceptions.RequestException:
-            #           pass
-            # else:
-            #     self.request_put(xml_output_name)
 
+        return observation
+
+
+    def build_simple_observation_target(self, casa_info, target_name, target_ra, target_dec):
+        """
+        :param casa_info: dictionary of metadata extracted from measurement set
+        :param target_name: name of target object, string
+        :param target_ra: ra of target in degrees, float
+        :param target_dec: dec of target in degrees, float
+        :returns: the CAOM observation created the target object
+        """
+        observation = SimpleObservation('EMERLIN', '{}_{}'.format(self.obs_id, target_name))
+        observation.obs_type = 'science'
+        observation.intent = ObservationIntentType.SCIENCE
+
+        point = Point(target_ra, target_dec)
+
+        observation.target = Target('TBD')
+        observation.target.name = target_name
+        observation.target_position = TargetPosition(point, 'Equatorial') # J2000?
+        observation.target_position.equinox = 2000.
+
+        observation.proposal = Proposal(casa_info['prop_id'])
+
+        xml_output_name = self.xml_out_dir + self.obs_id + '_' + target_name + '.xml'
+        writer = ObservationWriter()
+        writer.write(observation, xml_output_name)
+
+        if set_f.upload:
+            if set_f.replace_old_data:
+                self.request_delete(xml_output_name)
+            self.request_put(xml_output_name)
 
         return observation
 
@@ -274,25 +287,22 @@ class EmerlinMetadata:
         pickle_obj = emcp2dict(self.pickle_file)
 
         casa_info = casa.msmd_collect(self.ms_dir_main, pickle_obj['targets'])
-        casa_other = casa.ms_other_collect(self.ms_dir_main)
+        # casa_other = casa.ms_other_collect(self.ms_dir_main)
         observation = DerivedObservation('EMERLIN', self.obs_id, 'correlator')
 
         for tele in range(len(casa_info['antennas'])):
-            simple_observation = self.build_simple_observation(casa_info, pickle_obj, tele)
-            observation.members.add(simple_observation.get_uri()) # change id to abbreviation of name
+            simple_observation = self.build_simple_observation_telescope(casa_info, pickle_obj, tele)
+            observation.members.add(simple_observation.get_uri())
 
+        target_information = casa.target_position_all(self.ms_dir_main)
+        for i, targ in enumerate(target_information["name"]):
+            simple_observation = self.build_simple_observation_target(casa_info, targ, target_information["ra"][i],
+                                                                      target_information["dec"][i])
+            observation.members.add(simple_observation.get_uri())
 
         observation.obs_type = 'science'
         observation.intent = ObservationIntentType.SCIENCE
 
-        observation.target = Target('TBD')
-        target_name = pickle_obj['targets']
-        target_pos = casa.target_position(self.ms_dir_main, target_name)
-        point = Point(target_pos[0], target_pos[1])
-
-        observation.target.name = target_name
-        observation.target_position = TargetPosition(point, 'Equatorial')
-        observation.target_position.equinox = 2000.
         observation.telescope = Telescope(casa_info['tel_name'][0])
 
         observation.planes = TypedOrderedDict(Plane)
