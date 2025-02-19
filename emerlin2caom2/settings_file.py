@@ -4,4 +4,4 @@ xmldir = '' # directory where xml file will be generated, e.g. './data/'
 upload = True
 replace_old_data = True
 rootca = '' # location of rootCA.pem file
-ska_token = '' # ska beraer token
+ska_token = '' # ska bearer token

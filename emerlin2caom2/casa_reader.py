@@ -19,12 +19,15 @@ def msmd_collect(ms_file, targ_name):
     metadata
 
     """
+    
     msmd.open(ms_file)
     nspw = msmd.nspw()
 
     antenna_ids = msmd.antennaids()
     field_ids = range(msmd.nfields())
-
+    targets = targ_name.split(",")
+    if len(targets) > 1:
+        print("Warning: Multiple Science Targets, Position included for first target only.")
     first_scan = msmd.scannumbers()[0]    
 
     msmd_elements = {
@@ -41,7 +44,7 @@ def msmd_collect(ms_file, targ_name):
         'chan_res': msmd.chanwidths(0)[0],
         'nchan'   : nspw * len(msmd.chanwidths(0)),
         'prop_id' : msmd.projects()[0],
-        'num_scans': len(msmd.scansforfield(targ_name)),
+        #'num_scans': len(msmd.scansforfield(targets[0])),
         'int_time' : msmd.exposuretime(first_scan)['value']
     }
 
@@ -55,7 +58,7 @@ def msmd_collect(ms_file, targ_name):
     elements_convert = {
         'wl_upper': freq2wl(msmd_elements['wl_upper']),
         'wl_lower': freq2wl(msmd_elements['wl_lower']),
-        'chan_res': msmd_elements['chan_res']/1e9, 
+        'chan_res': freq2wl(msmd_elements['chan_res']), 
         'bp_name': emerlin_band(msmd_elements['wl_upper']),
     }
 
@@ -103,7 +106,11 @@ def emerlin_band(freq):
     return band
 
 def freq2wl(freq):
-    # Convert frequency (Hz) to wavelength (m)
+    """
+    Convert frequency (Hz) to wavelength (m)
+    :param freq: Frequency to convert
+    :returns: wavelength
+    """
     sol = 299792458
     wl = sol/freq
     return wl
@@ -112,7 +119,7 @@ def get_polar(ms_file):
     """
     Get polarisation state
     :param ms_file: Name of measurement set
-    :returns: polarization type and number of dimensions.
+    :returns: polarisation type and number of dimensions.
     """
     tb.open(ms_file+'/FEED')
     polarization = tb.getcol('POLARIZATION_TYPE')
@@ -140,15 +147,21 @@ def target_position(ms_file, target):
     :param target: target object name
     :returns: [ra, dec] in degrees
     """
+    targets = target.split(",")
     tb.open(ms_file+'/FIELD')
     source_name = tb.getcol('NAME')
     source_ref = tb.getcol('REFERENCE_DIR')
-    source_coords_ra = np.rad2deg(source_ref[0][0][source_name.tolist().index(target)]) % 360
-    source_coords_dec = np.rad2deg(source_ref[1][0][source_name.tolist().index(target)]) % 360
+    source_coords_ra = np.rad2deg(source_ref[0][0][source_name.tolist().index(targets[0])]) % 360
+    source_coords_dec = np.rad2deg(source_ref[1][0][source_name.tolist().index(targets[0])]) % 360
     tb.close()
     return [source_coords_ra, source_coords_dec]
   
 def polar2cart(r, theta, phi):
+    """
+    Convert frequency (Hz) to wavelength (m)
+    :param freq: Frequency to convert
+    :returns: wavelength
+    """
     x = r * math.sin(theta) * math.cos(phi)
     y = r * math.sin(theta) * math.sin(phi)
     z = r * math.cos(theta)
@@ -167,6 +180,11 @@ def get_release_date(ms_file):
     return rel_date
 
 def mjdtodate(mjd):
+    """
+    Converts date from MJD to the conventional format
+    :param mjd: date in mjd
+    :returns: date in pedestrian format
+    """
     origin = datetime.datetime(1858,11,17)
     date = origin + datetime.timedelta(mjd)
     return date
