@@ -5,7 +5,7 @@ import requests
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
     ReleaseType, ObservationWriter, ProductType, ChecksumURI, Provenance, Position, Point, Energy, TargetPosition, \
-    Interval, TypedSet, Polarization, shape, Proposal, Instrument, DerivedObservation, Time
+    Interval, TypedSet, Polarization, shape, Proposal, Instrument, DerivedObservation, Time, DataProductType
 from pkg_resources import Environment
 from setuptools.config.expand import canonic_data_files
 
@@ -37,6 +37,20 @@ def emcp2dict(emcp_file):
             nested_list = line_no_space.split(':')
             pickle_dict[nested_list[0]] = nested_list[1]
     return pickle_dict
+
+def role_extractor(pickle_dict):
+    targets = pickle_dict['targets'].split(',')
+    phase_cal = pickle_dict['phscals'].split(',')
+    flux_cal = pickle_dict['fluxcal']
+    band_pass_cal = pickle_dict['bpcal']
+    point_cal = pickle_dict['ptcal']
+
+    role_rev = {flux_cal:"flux_calibrator", band_pass_cal:"band_pass_calibrator", point_cal:"pointing_calibrator"}
+    for i, x in enumerate(targets):
+        role_rev[x] = "target_{}".format(i)
+        role_rev[phase_cal[i]] = "phase_calibrator_{}".format(i)
+
+    return role_rev
 
 def basename(name):
     """
@@ -71,11 +85,14 @@ class EmerlinMetadata:
     ms_dir_main = storage_name + '/{}_avg.ms'.format(obs_id)  # maybe flimsy? depends on the rigidity of the em pipeline
     ms_dir_spectral = storage_name + '/{}_sp.ms'.format(obs_id)
     pickle_file = storage_name + '/weblog/info/eMCP_info.txt'
+    pickle_obj = emcp2dict(pickle_file)
+    roles = role_extractor(pickle_obj)
 
     def artifact_metadata(self, observation, plane_id, artifact_full_name, plots):
         """
         Creates metadata for physical artifacts, including type, size and hash value
-        :param plane: plane to add artifact metadata to
+        :param observation: observation class to add artifact to
+        :param plane_id: plane to add artifact metadata to
         :param artifact_full_name: full location of target object
         :param plots: name of artifact only, no path
         """
@@ -97,6 +114,7 @@ class EmerlinMetadata:
         :param observation: Class to add metadata to
         :param fits_full_name: String format name and path to fits file
         :param images: String name of fits file, no path
+        :param plane_id: String id to allocate correct plane
         :returns: plane created for fits file to be passed to the artifact function
         """
 
@@ -127,17 +145,16 @@ class EmerlinMetadata:
         provenance.version = fits_header_data['wsc_version']
 
 
-    def measurement_set_metadata(self, observation, ms_dir, pickle_dict, plane_id):
+    def measurement_set_metadata(self, observation, ms_dir, plane_id):
         """
         Creates metadata for measurement sets, extracting infomation from the ms itself, as well as the pickle file
         :param observation:  Class to add metadata to
         :param ms_dir: string path and name of measurement set
-        :param pickle_dict: pickle object read in from file
         :returns: Plane class where data was added
         """
 
         ms_name = basename(ms_dir)
-        msmd_dict = casa.msmd_collect(ms_dir, pickle_dict['targets'])
+        msmd_dict = casa.msmd_collect(ms_dir, self.pickle_obj['targets'])
 
         ms_other = casa.ms_other_collect(ms_dir)     
 
@@ -178,15 +195,15 @@ class EmerlinMetadata:
         # plane.polarization.polarization_states = pol_states
 
         # adjustment for different pipeline versions
-        pipeline_name = pickle_dict['pipeline_path'].split('/')[-1]
+        pipeline_name = self.pickle_obj['pipeline_path'].split('/')[-1]
         if len(pipeline_name) == 0:
-            pipeline_name = pickle_dict['pipeline_path'].split('/')[-2]
+            pipeline_name = self.pickle_obj['pipeline_path'].split('/')[-2]
 
         provenance = Provenance(pipeline_name)
         plane.provenance = provenance
-        provenance.version = pickle_dict['pipeline_version']
+        provenance.version = self.pickle_obj['pipeline_version']
         provenance.project = msmd_dict['prop_id']
-        provenance.run_id = pickle_dict['run']
+        provenance.run_id = self.pickle_obj['run']
 
         plane.artifacts = TypedOrderedDict(Artifact)
 
@@ -207,27 +224,15 @@ class EmerlinMetadata:
         # provenance.keywords = str([key for key, value in pickle_obj['input_steps'].items() if value == 1])
 
 
-    def build_simple_observation(self, casa_info, pickle_dict, ante_id):
+    def build_simple_observation_telescope(self, casa_info, ante_id):
         """
         :param casa_info: dictionary of metadata extracted from measurement set
-        :param pickle_dict: dictionary of metadata extracted from the text version of the pickle file
         :param ante_id: antenna id, int
         :returns: the caom observation created
         """
         observation = SimpleObservation('EMERLIN', '{}_{}'.format(self.obs_id, casa_info['antennas'][int(ante_id)]))
         observation.obs_type = 'science'
         observation.intent = ObservationIntentType.SCIENCE
-
-
-        target_name = pickle_dict['targets']
-        target_pos = casa.target_position(self.ms_dir_main, target_name)
-        point = Point(target_pos[0], target_pos[1])
-
-        observation.target = Target('TBD')
-        observation.target.name = target_name
-        observation.target_position = TargetPosition(point, 'Equatorial') # J2000?
-        observation.target_position.equinox = 2000.
-
 
         observation.telescope = Telescope(casa_info['tel_name'][0])
         observation.proposal = Proposal(casa_info['prop_id'])
@@ -252,15 +257,39 @@ class EmerlinMetadata:
             if set_f.replace_old_data:
                 self.request_delete(xml_output_name)
             self.request_put(xml_output_name)
-            # self.request_put(xml_output_name)
-            # if set_f.replace_old_data:
-            #     try:
-            #         self.request_post(xml_output_name)
-            #     except requests.exceptions.RequestException:
-            #           pass
-            # else:
-            #     self.request_put(xml_output_name)
 
+        return observation
+
+
+    def build_simple_observation_target(self, casa_info, target_name, target_ra, target_dec):
+        """
+        :param casa_info: dictionary of metadata extracted from measurement set
+        :param target_name: name of target object, string
+        :param target_ra: ra of target in degrees, float
+        :param target_dec: dec of target in degrees, float
+        :returns: the CAOM observation created the target object
+        """
+        observation = SimpleObservation('EMERLIN', '{}_{}'.format(self.obs_id, target_name))
+        observation.obs_type = 'science'
+        observation.intent = ObservationIntentType.SCIENCE
+
+        point = Point(target_ra, target_dec)
+
+        observation.target = Target('TBD')
+        observation.target.name = target_name
+        observation.target_position = TargetPosition(point, 'Equatorial') # J2000?
+        observation.target_position.equinox = 2000.
+
+        observation.proposal = Proposal(casa_info['prop_id'])
+
+        xml_output_name = self.xml_out_dir + self.obs_id + '_' + target_name + '.xml'
+        writer = ObservationWriter()
+        writer.write(observation, xml_output_name)
+
+        if set_f.upload:
+            if set_f.replace_old_data:
+                self.request_delete(xml_output_name)
+            self.request_put(xml_output_name)
 
         return observation
 
@@ -271,28 +300,24 @@ class EmerlinMetadata:
         plots and pickle file metadata. The target measurement set and output destination are defined within the
         settings_file.py.
         """
-        pickle_obj = emcp2dict(self.pickle_file)
 
-        casa_info = casa.msmd_collect(self.ms_dir_main, pickle_obj['targets'])
-        casa_other = casa.ms_other_collect(self.ms_dir_main)
+        casa_info = casa.msmd_collect(self.ms_dir_main, self.pickle_obj['targets'])
+        # casa_other = casa.ms_other_collect(self.ms_dir_main)
         observation = DerivedObservation('EMERLIN', self.obs_id, 'correlator')
 
         for tele in range(len(casa_info['antennas'])):
-            simple_observation = self.build_simple_observation(casa_info, pickle_obj, tele)
-            observation.members.add(simple_observation.get_uri()) # change id to abbreviation of name
+            simple_observation = self.build_simple_observation_telescope(casa_info, tele)
+            observation.members.add(simple_observation.get_uri())
 
+        target_information = casa.target_position_all(self.ms_dir_main)
+        for i, targ in enumerate(target_information["name"]):
+            simple_observation = self.build_simple_observation_target(casa_info, targ, target_information["ra"][i],
+                                                                      target_information["dec"][i])
+            observation.members.add(simple_observation.get_uri())
 
         observation.obs_type = 'science'
         observation.intent = ObservationIntentType.SCIENCE
 
-        observation.target = Target('TBD')
-        target_name = pickle_obj['targets']
-        target_pos = casa.target_position(self.ms_dir_main, target_name)
-        point = Point(target_pos[0], target_pos[1])
-
-        observation.target.name = target_name
-        observation.target_position = TargetPosition(point, 'Equatorial')
-        observation.target_position.equinox = 2000.
         observation.telescope = Telescope(casa_info['tel_name'][0])
 
         observation.planes = TypedOrderedDict(Plane)
@@ -301,13 +326,32 @@ class EmerlinMetadata:
         for plane_target in casa_info['mssources']:
             plane = Plane(plane_target)
             observation.planes[plane_target] = plane
+            pipeline_name = self.pickle_obj['pipeline_path'].split('/')[-1]
+            if len(pipeline_name) == 0:
+                pipeline_name = self.pickle_obj['pipeline_path'].split('/')[-2]
+            provenance = Provenance(pipeline_name)
+            provenance.keywords.add("Role {}".format(self.roles[plane_target])) # can't set for some reason
+            plane.provenance = provenance
+            provenance.version = self.pickle_obj['pipeline_version']
+            provenance.run_id = self.pickle_obj['run']
+
             plane_id_list.append(plane_target)
 
         ms_plane_id = basename(self.ms_dir_main)
         plane = Plane(ms_plane_id)
+        plane.data_product_type = DataProductType('measurements')
         observation.planes[ms_plane_id] = plane
         plane_id_list.append(ms_plane_id)
-        self.measurement_set_metadata(observation, self.ms_dir_main, pickle_obj, ms_plane_id)
+        self.measurement_set_metadata(observation, self.ms_dir_main, ms_plane_id)
+
+        my_file = Path(self.ms_dir_spectral)
+        if my_file.is_dir():
+            sp_plane_id = basename(self.ms_dir_spectral)
+            plane = Plane(sp_plane_id)
+            observation.planes[sp_plane_id] = plane
+            plane_id_list.append(sp_plane_id)
+            plane.data_product_type = DataProductType('spectrum')
+            self.measurement_set_metadata(observation, self.ms_dir_spectral, sp_plane_id)
 
         for directory in os.listdir(self.storage_name + '/weblog/plots/'):
             for plots in os.listdir(self.storage_name + '/weblog/plots/' + directory + '/'):
@@ -332,7 +376,7 @@ class EmerlinMetadata:
             if extension == 'ms':
                 plane_id_full = self.storage_name + '/splits/' + directory + '/'
                 plane_id_single = [x for x in plane_id_list if x in directory]
-                self.measurement_set_metadata(observation, plane_id_full, pickle_obj, plane_id_single[0])
+                self.measurement_set_metadata(observation, plane_id_full, plane_id_single[0])
         # currently not handling flag_versions as casa will not read "ms1" version measurement sets
         
         # removed for now but this structure can be used for auxiliary measurement sets in future

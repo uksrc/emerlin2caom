@@ -90,3 +90,7 @@ Tests can be run from the main directory whilst in your conda environment with t
 python -m pytest
 ```
 The unit tests do not currently include mock measurement sets as there were some issues with it being recognised by the python casa module. The best solution is likely to include some small section of a measurement set which can still be read by the code.
+
+## Diagram for CAOM mapping for e-MERLIN
+
+![Alt text](images/emerlin_uml_diagram.png)

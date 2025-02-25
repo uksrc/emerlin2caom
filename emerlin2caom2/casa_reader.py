@@ -155,6 +155,21 @@ def target_position(ms_file, target):
     source_coords_dec = np.rad2deg(source_ref[1][0][source_name.tolist().index(targets[0])]) % 360
     tb.close()
     return [source_coords_ra, source_coords_dec]
+
+def target_position_all(ms_file):
+    """
+    Get position and names of all targets within a measurement set.
+    :param ms_file: input measurement set name
+    :param target: target object name
+    :returns: ra, dec, names (coords in degrees)
+    """
+    tb.open(ms_file+'/FIELD')
+    source_name = tb.getcol('NAME')
+    source_ref = tb.getcol('REFERENCE_DIR')
+    source_coords_ra = [np.rad2deg(x) % 360 for x in source_ref[0]]
+    source_coords_dec = [np.rad2deg(x) % 360 for x in source_ref[1]]
+    tb.close()
+    return {"ra":source_coords_ra[0], "dec":source_coords_dec[0], "name":source_name}
   
 def polar2cart(r, theta, phi):
     """
