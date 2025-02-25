@@ -41,14 +41,23 @@ def emcp2dict(emcp_file):
 def role_extractor(pickle_dict):
     targets = pickle_dict['targets'].split(',')
     phase_cal = pickle_dict['phscals'].split(',')
-    flux_cal = pickle_dict['fluxcal']
-    band_pass_cal = pickle_dict['bpcal']
-    point_cal = pickle_dict['ptcal']
-
-    role_rev = {flux_cal:"flux_calibrator", band_pass_cal:"band_pass_calibrator", point_cal:"pointing_calibrator"}
+    flux_cal = pickle_dict['fluxcal'].split(',')
+    band_pass_cal = pickle_dict['bpcal'].split(',')
+    point_cal = pickle_dict['ptcal'].split(',')
+    
+    role_rev = {}
     for i, x in enumerate(targets):
         role_rev[x] = "target_{}".format(i)
         role_rev[phase_cal[i]] = "phase_calibrator_{}".format(i)
+
+    for i, x in enumerate(flux_cal):
+        role_rev[x] = "flux_calibrator"
+
+    for i, x in enumerate(band_pass_cal):
+            role_rev[x] = "band_pass_calibrator"
+
+    for i, x in enumerate(point_cal):
+        role_rev[x] = "pointing_calibrator"
 
     return role_rev
 
@@ -330,7 +339,17 @@ class EmerlinMetadata:
             if len(pipeline_name) == 0:
                 pipeline_name = self.pickle_obj['pipeline_path'].split('/')[-2]
             provenance = Provenance(pipeline_name)
-            provenance.keywords.add("Role {}".format(self.roles[plane_target])) # can't set for some reason
+            # adjustment for difference in naming between measurement set and info file
+            if '+' in plane_target:
+                split_name = plane_target.split('+')
+                plane_target_adjusted = split_name[0][0:4] + '+' + split_name[1][0:4]
+            elif '-' in plane_target:
+                split_name = plane_target.split('-')
+                plane_target_adjusted = split_name[0][0:4] + '-' + split_name[1][0:4]
+            else:
+                plane_target_adjusted = plane_target
+            print(plane_target_adjusted)
+            provenance.keywords.add("Role {}".format(self.roles[plane_target_adjusted]))
             plane.provenance = provenance
             provenance.version = self.pickle_obj['pipeline_version']
             provenance.run_id = self.pickle_obj['run']
