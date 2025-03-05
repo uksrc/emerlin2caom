@@ -59,7 +59,17 @@ def role_extractor(pickle_dict):
     for i, x in enumerate(point_cal):
         role_rev[x] = "pointing_calibrator"
 
-    return role_rev
+    target_names = role_rev.keys()
+    name_ra = []
+    name_dec = []
+    for name in target_names:
+        split_name = name.split('+')
+        if len(split_name) == 1:
+            split_name = name.split('-')
+        name_ra.append(split_name[0])
+        name_dec.append(split_name[1])
+
+    return role_rev, name_ra, name_dec
 
 def basename(name):
     """
@@ -95,7 +105,8 @@ class EmerlinMetadata:
     ms_dir_spectral = storage_name + '/{}_sp.ms'.format(obs_id)
     pickle_file = storage_name + '/weblog/info/eMCP_info.txt'
     pickle_obj = emcp2dict(pickle_file)
-    roles = role_extractor(pickle_obj)
+    roles, target_ra, target_dec = role_extractor(pickle_obj)
+
 
     def artifact_metadata(self, observation, plane_id, artifact_full_name, plots):
         """
@@ -338,10 +349,11 @@ class EmerlinMetadata:
             pipeline_name = self.pickle_obj['pipeline_path'].split('/')[-1]
             if len(pipeline_name) == 0:
                 pipeline_name = self.pickle_obj['pipeline_path'].split('/')[-2]
-            provenance = Provenance(pipeline_name)
+            provenance = Provenance(pipeline_name)git pull use their changes
             # adjustment for difference in naming between measurement set and info file
             if '+' in plane_target:
                 split_name = plane_target.split('+')
+                # maybe add a loop here to see if the components fit into the targ ra/dec
                 plane_target_adjusted = split_name[0][0:4] + '+' + split_name[1][0:4]
             elif '-' in plane_target:
                 split_name = plane_target.split('-')
