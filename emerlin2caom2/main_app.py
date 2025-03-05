@@ -402,12 +402,13 @@ class EmerlinMetadata:
                     images_full_name = self.storage_name + '/weblog/images/' + directory + '/' + images
                     self.artifact_metadata(observation, plane_id_single[0], images_full_name, images)
 
-        for directory in os.listdir(self.storage_name + '/splits/'):
-            extension = directory.split('.')[-1]
-            if extension == 'ms':
-                plane_id_full = self.storage_name + '/splits/' + directory + '/'
-                plane_id_single = [x for x in plane_id_list if x in directory]
-                self.measurement_set_metadata(observation, plane_id_full, plane_id_single[0])
+        if os.path.isdir(self.storage_name + '/splits/'):
+            for directory in os.listdir(self.storage_name + '/splits/'):
+                extension = directory.split('.')[-1]
+                if extension == 'ms':
+                    plane_id_full = self.storage_name + '/splits/' + directory + '/'
+                    plane_id_single = [x for x in plane_id_list if x in directory]
+                    self.measurement_set_metadata(observation, plane_id_full, plane_id_single[0])
         # currently not handling flag_versions as casa will not read "ms1" version measurement sets
         
         # removed for now but this structure can be used for auxiliary measurement sets in future
