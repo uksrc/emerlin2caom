@@ -60,6 +60,7 @@ def role_extractor(pickle_dict):
         role_rev[x] = "pointing_calibrator"
 
     target_names = role_rev.keys()
+    print(target_names)
     name_ra = []
     name_dec = []
     for name in target_names:
@@ -349,18 +350,17 @@ class EmerlinMetadata:
             pipeline_name = self.pickle_obj['pipeline_path'].split('/')[-1]
             if len(pipeline_name) == 0:
                 pipeline_name = self.pickle_obj['pipeline_path'].split('/')[-2]
-            provenance = Provenance(pipeline_name)git pull use their changes
+            provenance = Provenance(pipeline_name)
             # adjustment for difference in naming between measurement set and info file
-            if '+' in plane_target:
-                split_name = plane_target.split('+')
-                # maybe add a loop here to see if the components fit into the targ ra/dec
-                plane_target_adjusted = split_name[0][0:4] + '+' + split_name[1][0:4]
-            elif '-' in plane_target:
-                split_name = plane_target.split('-')
-                plane_target_adjusted = split_name[0][0:4] + '-' + split_name[1][0:4]
-            else:
-                plane_target_adjusted = plane_target
-            print(plane_target_adjusted)
+            # if '+' in plane_target:
+            #     split_name = plane_target.split('+')
+            #     # maybe add a loop here to see if the components fit into the targ ra/dec
+            #     plane_target_adjusted = split_name[0][0:4] + '+' + split_name[1][0:4]
+            # elif '-' in plane_target:
+            #     split_name = plane_target.split('-')
+            #     plane_target_adjusted = split_name[0][0:4] + '-' + split_name[1][0:4]
+            # else:
+            plane_target_adjusted = plane_target
             provenance.keywords.add("Role {}".format(self.roles[plane_target_adjusted]))
             plane.provenance = provenance
             provenance.version = self.pickle_obj['pipeline_version']
