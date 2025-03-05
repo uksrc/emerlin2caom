@@ -41,16 +41,36 @@ def emcp2dict(emcp_file):
 def role_extractor(pickle_dict):
     targets = pickle_dict['targets'].split(',')
     phase_cal = pickle_dict['phscals'].split(',')
-    flux_cal = pickle_dict['fluxcal']
-    band_pass_cal = pickle_dict['bpcal']
-    point_cal = pickle_dict['ptcal']
-
-    role_rev = {flux_cal:"flux_calibrator", band_pass_cal:"band_pass_calibrator", point_cal:"pointing_calibrator"}
+    flux_cal = pickle_dict['fluxcal'].split(',')
+    band_pass_cal = pickle_dict['bpcal'].split(',')
+    point_cal = pickle_dict['ptcal'].split(',')
+    
+    role_rev = {}
     for i, x in enumerate(targets):
         role_rev[x] = "target_{}".format(i)
         role_rev[phase_cal[i]] = "phase_calibrator_{}".format(i)
 
-    return role_rev
+    for i, x in enumerate(flux_cal):
+        role_rev[x] = "flux_calibrator"
+
+    for i, x in enumerate(band_pass_cal):
+            role_rev[x] = "band_pass_calibrator"
+
+    for i, x in enumerate(point_cal):
+        role_rev[x] = "pointing_calibrator"
+
+    target_names = role_rev.keys()
+    print(target_names)
+    name_ra = []
+    name_dec = []
+    for name in target_names:
+        split_name = name.split('+')
+        if len(split_name) == 1:
+            split_name = name.split('-')
+        name_ra.append(split_name[0])
+        name_dec.append(split_name[1])
+
+    return role_rev, name_ra, name_dec
 
 def basename(name):
     """
@@ -86,7 +106,8 @@ class EmerlinMetadata:
     ms_dir_spectral = storage_name + '/{}_sp.ms'.format(obs_id)
     pickle_file = storage_name + '/weblog/info/eMCP_info.txt'
     pickle_obj = emcp2dict(pickle_file)
-    roles = role_extractor(pickle_obj)
+    roles, target_ra, target_dec = role_extractor(pickle_obj)
+
 
     def artifact_metadata(self, observation, plane_id, artifact_full_name, plots):
         """
@@ -330,7 +351,17 @@ class EmerlinMetadata:
             if len(pipeline_name) == 0:
                 pipeline_name = self.pickle_obj['pipeline_path'].split('/')[-2]
             provenance = Provenance(pipeline_name)
-            provenance.keywords.add("Role {}".format(self.roles[plane_target])) # can't set for some reason
+            # adjustment for difference in naming between measurement set and info file
+            # if '+' in plane_target:
+            #     split_name = plane_target.split('+')
+            #     # maybe add a loop here to see if the components fit into the targ ra/dec
+            #     plane_target_adjusted = split_name[0][0:4] + '+' + split_name[1][0:4]
+            # elif '-' in plane_target:
+            #     split_name = plane_target.split('-')
+            #     plane_target_adjusted = split_name[0][0:4] + '-' + split_name[1][0:4]
+            # else:
+            plane_target_adjusted = plane_target
+            provenance.keywords.add("Role {}".format(self.roles[plane_target_adjusted]))
             plane.provenance = provenance
             provenance.version = self.pickle_obj['pipeline_version']
             provenance.run_id = self.pickle_obj['run']
@@ -371,12 +402,13 @@ class EmerlinMetadata:
                     images_full_name = self.storage_name + '/weblog/images/' + directory + '/' + images
                     self.artifact_metadata(observation, plane_id_single[0], images_full_name, images)
 
-        for directory in os.listdir(self.storage_name + '/splits/'):
-            extension = directory.split('.')[-1]
-            if extension == 'ms':
-                plane_id_full = self.storage_name + '/splits/' + directory + '/'
-                plane_id_single = [x for x in plane_id_list if x in directory]
-                self.measurement_set_metadata(observation, plane_id_full, plane_id_single[0])
+        if os.path.isdir(self.storage_name + '/splits/'):
+            for directory in os.listdir(self.storage_name + '/splits/'):
+                extension = directory.split('.')[-1]
+                if extension == 'ms':
+                    plane_id_full = self.storage_name + '/splits/' + directory + '/'
+                    plane_id_single = [x for x in plane_id_list if x in directory]
+                    self.measurement_set_metadata(observation, plane_id_full, plane_id_single[0])
         # currently not handling flag_versions as casa will not read "ms1" version measurement sets
         
         # removed for now but this structure can be used for auxiliary measurement sets in future
