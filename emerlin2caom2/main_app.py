@@ -4,8 +4,10 @@ from pathlib import Path
 import requests
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
-    ReleaseType, ObservationWriter, ProductType, ChecksumURI, Provenance, Position, Point, Energy, TargetPosition, \
-    Interval, TypedSet, Polarization, shape, Proposal, Instrument, DerivedObservation, Time, DataProductType
+    ReleaseType, ObservationWriter, Provenance, Position, Point, Energy, TargetPosition, \
+    Interval, TypedSet, Polarization, shape, Proposal, Instrument, DerivedObservation, Time, DataProductType, \
+    PolarizationState, DataLinkSemantics, EnergyBand
+
 from pkg_resources import Environment
 from setuptools.config.expand import canonic_data_files
 
@@ -126,6 +128,8 @@ class EmerlinMetadata:
 
         artifact.content_type = meta_data.file_type
         artifact.content_length = meta_data.size
+
+	# This will break as no more ChecksumURI
         artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
 
 
