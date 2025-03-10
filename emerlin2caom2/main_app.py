@@ -332,13 +332,13 @@ class EmerlinMetadata:
 
         for tele in range(len(casa_info['antennas'])):
             simple_observation = self.build_simple_observation_telescope(casa_info, tele)
-            observation.members.add(simple_observation.get_uri())
+            observation.members.add(str(simple_observation.uri))
 
         target_information = casa.target_position_all(self.ms_dir_main)
         for i, targ in enumerate(target_information["name"]):
             simple_observation = self.build_simple_observation_target(casa_info, targ, target_information["ra"][i],
                                                                       target_information["dec"][i])
-            observation.members.add(simple_observation.get_uri())
+            observation.members.add(str(simple_observation.uri))
 
         observation.obs_type = 'science'
         observation.intent = ObservationIntentType.SCIENCE
