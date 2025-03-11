@@ -209,10 +209,14 @@ class EmerlinMetadata:
         #plane.time.dimension = msmd_dict["num_scans"]
 
         # Polarisation (Polarization) object needs at least one state as arg.
+        # For now this is hard-coded, as this is the only way I can get it to pass xml validation.
+        # The states values cannot be comprised of any strings or funcions. 
 
         pol_dim = int(ms_other["polar_dim"])
-        pol_states = ms_other["polar_states"] 
-        plane.polarization = Polarization(dimension = pol_dim, states = pol_states)
+        pol_states = list(ms_other["polar_states"])
+        #for i in range(len(pol_states)):
+        #   pol_states[i] = "PolarizationState." + pol_states[i]
+        plane.polarization = Polarization(dimension = pol_dim, states = [PolarizationState.RR, PolarizationState.LL])
 
         # adjustment for different pipeline versions
         pipeline_name = self.pickle_obj['pipeline_path'].split('/')[-1]
