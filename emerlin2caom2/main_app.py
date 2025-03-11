@@ -122,15 +122,13 @@ class EmerlinMetadata:
         plane = observation.planes[plane_id]
         art_uri = 'uri:{}'.format(plots)
 
-        artifact = Artifact(art_uri, ProductType.AUXILIARY, ReleaseType.DATA)
+        artifact = Artifact(art_uri, DataLinkSemantics.AUXILIARY, ReleaseType.DATA)
         plane.artifacts[art_uri] = artifact
         meta_data = msmd.get_local_file_info(artifact_full_name)
 
         artifact.content_type = meta_data.file_type
         artifact.content_length = meta_data.size
-
-	# This will break as no more ChecksumURI
-        artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
+        artifact.content_checksum = 'md5:{}'.format(meta_data.md5sum)
 
 
     def fits_plane_metadata(self, observation, fits_full_name, images, plane_id):
@@ -211,16 +209,10 @@ class EmerlinMetadata:
         #plane.time.dimension = msmd_dict["num_scans"]
 
         # Polarisation (Polarization) object needs at least one state as arg.
-        # Not sure how to get these into a plane.polarization yet!! 
 
         pol_dim = int(ms_other["polar_dim"])
         pol_states = ms_other["polar_states"] 
         plane.polarization = Polarization(dimension = pol_dim, states = pol_states)
-        #Polarization.states = ms_other["polar_states"]
-        #Polarization.dimension = int(ms_other["polar_dim"])
-
-        # This one isn't working quite right yet-- see obs_reader_writer.py
-        # plane.polarization.polarization_states = pol_states
 
         # adjustment for different pipeline versions
         pipeline_name = self.pickle_obj['pipeline_path'].split('/')[-1]
@@ -237,14 +229,14 @@ class EmerlinMetadata:
 
         art_uri = 'uri:{}'.format(ms_name)
 
-        artifact = Artifact(art_uri, ProductType.SCIENCE, ReleaseType.DATA)
+        artifact = Artifact(art_uri, DataLinkSemantics.THIS, ReleaseType.DATA)
         plane.artifacts[art_uri] = artifact
 
         meta_data = msmd.get_local_file_info(ms_dir)
 
         artifact.content_type = meta_data.file_type
         artifact.content_length = meta_data.size
-        artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
+        artifact.content_checksum = 'md5:{}'.format(meta_data.md5sum)
 
         return plane
         ### These components need their output value to be changed somewhat
