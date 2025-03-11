@@ -189,12 +189,11 @@ class EmerlinMetadata:
         #Release date to-do convert to ivoa:datetime
         plane.data_release = ms_other["data_release"]
 
-        # Make an Energy object for this Plane
-        plane.energy = Energy()
+        # Make an Energy object for this Plane (bounds,samples required)
+        esample = shape.SubInterval(msmd_dict["wl_lower"], msmd_dict["wl_upper"])
+        ebounds = Interval(msmd_dict["wl_lower"], msmd_dict["wl_upper"])
+        plane.energy = Energy(ebounds, [esample])
 
-        # Assign Energy object metadata
-        sample = shape.SubInterval(msmd_dict["wl_lower"], msmd_dict["wl_upper"])
-        plane.energy.bounds = Interval(msmd_dict["wl_lower"], msmd_dict["wl_upper"], samples=[sample])
         plane.energy.bandpass_name = str(msmd_dict["bp_name"])
         
         plane.energy.sample_size = msmd_dict["chan_res"]
@@ -203,18 +202,22 @@ class EmerlinMetadata:
         # This doesn't break anything but also isn't printed to xml. caom2.5?
         plane.energy.energy_bands = TypedSet('Radio')
 
-        # Plane Time Object
-        plane.time = Time()
-        
+        # Plane Time Object (2.5 bounds, samples required)
         time_sample = shape.SubInterval(ms_other["obs_start_time"], ms_other["obs_stop_time"])
-        plane.time.bounds = Interval(ms_other["obs_start_time"], ms_other["obs_stop_time"], samples=[time_sample])
+        time_bounds = Interval(ms_other["obs_start_time"], ms_other["obs_stop_time"])
+        plane.time = Time(time_bounds, [time_sample])
+        
         #plane.time.exposure = msmd_dict["int_time"]
         #plane.time.dimension = msmd_dict["num_scans"]
 
-        plane.polarization = Polarization()
-        #pol_states, dim = casa.get_polar(ms_dir)
-        
-        plane.polarization.dimension = int(ms_other["polar_dim"])
+        # Polarisation (Polarization) object needs at least one state as arg.
+        # Not sure how to get these into a plane.polarization yet!! 
+
+        pol_dim = int(ms_other["polar_dim"])
+        pol_states = ms_other["polar_states"] 
+        plane.polarization = Polarization(dimension = pol_dim, states = pol_states)
+        #Polarization.states = ms_other["polar_states"]
+        #Polarization.dimension = int(ms_other["polar_dim"])
 
         # This one isn't working quite right yet-- see obs_reader_writer.py
         # plane.polarization.polarization_states = pol_states
