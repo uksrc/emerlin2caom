@@ -161,7 +161,7 @@ class EmerlinMetadata:
 
         energy = Energy()
         plane.energy = energy
-        plane.energy.restwav = casa.freq2wl(fits_header_data['central_freq'])  # change freq to wav and check against model
+        plane.energy.rest = casa.freq2wl(fits_header_data['central_freq'])  # change freq to wav and check against model
 
         provenance = Provenance(images)
         plane.provenance = provenance
@@ -213,9 +213,7 @@ class EmerlinMetadata:
         # The states values cannot be comprised of any strings or funcions. 
 
         pol_dim = int(ms_other["polar_dim"])
-        pol_states = list(ms_other["polar_states"])
-        #for i in range(len(pol_states)):
-        #   pol_states[i] = "PolarizationState." + pol_states[i]
+        #pol_states = list(ms_other["polar_states"])
         plane.polarization = Polarization(dimension = pol_dim, states = [PolarizationState.RR, PolarizationState.LL])
 
         # adjustment for different pipeline versions
@@ -373,7 +371,7 @@ class EmerlinMetadata:
 
         ms_plane_id = basename(self.ms_dir_main)
         plane = Plane(ms_plane_id)
-        plane.data_product_type = DataProductType('measurements')
+        plane.data_product_type = DataProductType('visibility')
         observation.planes[ms_plane_id] = plane
         plane_id_list.append(ms_plane_id)
         self.measurement_set_metadata(observation, self.ms_dir_main, ms_plane_id)

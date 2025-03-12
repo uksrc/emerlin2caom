@@ -128,7 +128,10 @@ def get_polar(ms_file):
     tb.close()
     pol_type = list(polarization[:,0])    
     if pol_type == ['R','L']:
-        pol_type = ['RR', 'LL'] 
+        pol_type = ['RR', 'LL']
+    for i in range(len(pol_type)):
+        pol_type[i] = "PolarizationState." + pol_type[i]
+ 
     return pol_type, pol_dim
 
 def get_scan_sum(ms_file):
