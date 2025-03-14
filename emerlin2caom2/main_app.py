@@ -3,6 +3,7 @@ from os.path import exists
 from pathlib import Path
 import requests
 
+
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
     ReleaseType, ObservationWriter, Provenance, Position, Point, Energy, TargetPosition, \
     Interval, TypedSet, Polarization, shape, Proposal, Instrument, DerivedObservation, Time, DataProductType, \
@@ -144,8 +145,7 @@ class EmerlinMetadata:
         plane = observation.planes[plane_id]
         fits_header_data = fr.header_extraction(fits_full_name + images)
 
-        position = Position()
-        plane.position = position
+
         ra_pos = fits_header_data['ra_deg']
         print(ra_pos)
         if ra_pos < 0:
@@ -156,12 +156,16 @@ class EmerlinMetadata:
         height = abs(fits_header_data['pix_length'] * fits_header_data['pix_length_scale'])
         radius = 0.5 * width
         # plane.position.bounds = shape.Box(centre, radius)
-        plane.position.bounds = shape.Circle(centre, radius)
+        position = Position(shape.Circle(centre, radius), shape.MultiShape([shape.Circle(centre, radius)]))
+        plane.position = position
+        # plane.position.bounds = shape.Circle(centre, radius)
         # should be box but is unsupported by the writer, neither is point
 
-        energy = Energy()
-        plane.energy = energy
-        plane.energy.rest = casa.freq2wl(fits_header_data['central_freq'])  # change freq to wav and check against model
+        ### REMOVED AS WE NEED TO ADD "bounds" and "samples" which we do not want
+        ### Did they intend to make these quantities mandatory.
+        # energy = Energy()
+        # plane.energy = energy
+        # plane.energy.rest = casa.freq2wl(fits_header_data['central_freq'])  # change freq to wav and check against model
 
         provenance = Provenance(images)
         plane.provenance = provenance
@@ -329,13 +333,13 @@ class EmerlinMetadata:
 
         for tele in range(len(casa_info['antennas'])):
             simple_observation = self.build_simple_observation_telescope(casa_info, tele)
-            observation.members.add(str(simple_observation.uri))
+            observation.members.add(simple_observation.uri)
 
         target_information = casa.target_position_all(self.ms_dir_main)
         for i, targ in enumerate(target_information["name"]):
             simple_observation = self.build_simple_observation_target(casa_info, targ, target_information["ra"][i],
                                                                       target_information["dec"][i])
-            observation.members.add(str(simple_observation.uri))
+            observation.members.add(simple_observation.uri)
 
         observation.obs_type = 'science'
         observation.intent = ObservationIntentType.SCIENCE
