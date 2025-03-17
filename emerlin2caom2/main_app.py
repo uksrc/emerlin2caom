@@ -162,10 +162,11 @@ class EmerlinMetadata:
         # should be box but is unsupported by the writer, neither is point
 
         ### REMOVED AS WE NEED TO ADD "bounds" and "samples" which we do not want
-        ### Did they intend to make these quantities mandatory.
-        # energy = Energy()
-        # plane.energy = energy
-        # plane.energy.rest = casa.freq2wl(fits_header_data['central_freq'])  # change freq to wav and check against model
+        ### Did they intend to make these quantities mandatory. 
+        ### Yes, intended, but can we not get these?
+        rest_energy = casa.freq2wl(fits_header_data['central_freq'])
+        plane.energy = Energy(Interval(rest_energy, rest_energy), [shape.SubInterval(rest_energy, rest_energy)])
+        plane.energy.rest = rest_energy
 
         provenance = Provenance(images)
         plane.provenance = provenance
@@ -192,9 +193,7 @@ class EmerlinMetadata:
         plane.data_release = ms_other["data_release"]
 
         # Make an Energy object for this Plane (bounds,samples required)
-        esample = shape.SubInterval(msmd_dict["wl_lower"], msmd_dict["wl_upper"])
-        ebounds = Interval(msmd_dict["wl_lower"], msmd_dict["wl_upper"])
-        plane.energy = Energy(ebounds, [esample])
+        plane.energy = Energy(Interval(msmd_dict["wl_lower"], msmd_dict["wl_upper"]), [shape.SubInterval(msmd_dict["wl_lower"], msmd_dict["wl_upper"])]) 
 
         plane.energy.bandpass_name = str(msmd_dict["bp_name"])
         
@@ -205,6 +204,7 @@ class EmerlinMetadata:
         plane.energy.energy_bands = TypedSet('Radio')
 
         # Plane Time Object (2.5 bounds, samples required)
+        # If more than one time sample needed, then use a for loop to add samples.
         time_sample = shape.SubInterval(ms_other["obs_start_time"], ms_other["obs_stop_time"])
         time_bounds = Interval(ms_other["obs_start_time"], ms_other["obs_stop_time"])
         plane.time = Time(time_bounds, [time_sample])
