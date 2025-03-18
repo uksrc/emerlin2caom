@@ -101,9 +101,10 @@ class EmerlinMetadata:
     if xml_out_dir[-1] != '/':
         xml_out_dir += '/'
 
-    base_url = 'https://src-data-repo.co.uk/torkeep/observations/EMERLIN'
+    base_url = 'http://localhost/8080/observations/'
+    #base_url = 'https://src-data-repo.co.uk/torkeep/observations/EMERLIN'
     rootca = set_f.rootca
-    ska_token = set_f.ska_token
+    #ska_token = set_f.ska_token
     obs_id = basename(storage_name)
     ms_dir_main = storage_name + '/{}_avg.ms'.format(obs_id)  # maybe flimsy? depends on the rigidity of the em pipeline
     ms_dir_spectral = storage_name + '/{}_sp.ms'.format(obs_id)
@@ -201,7 +202,7 @@ class EmerlinMetadata:
         plane.energy.dimension = msmd_dict["nchan"]      
  
         # This doesn't break anything but also isn't printed to xml. caom2.5?
-        plane.energy.energy_bands = TypedSet('Radio')
+        plane.energy.energy_bands = TypedSet(EnergyBand.RADIO)
 
         # Plane Time Object (2.5 bounds, samples required)
         # If more than one time sample needed, then use a for loop to add samples.
@@ -457,33 +458,36 @@ class EmerlinMetadata:
         made_url = self.base_url + '/' + '.'.join(xml_output_name.split('/')[-1].split('.')[:-1]).rstrip()
         return made_url
 
-    def request_put(self, xml_output_name):
-        """
-        Put target XML data onto the database.
-        :param xml_output_name: ObservationID of xml file to put
-        """
-        xml_output_name = xml_output_name
-        url_put = self.url_maker(xml_output_name)
-        print(repr(url_put)) # can remove once code no longer needs debugging
-        put_file = xml_output_name
-        headers_put = {'authorization' : 'bearer {}'.format(self.ska_token), 'Content-type': 'text/xml'}
-        res = requests.put(url_put, data=open(put_file, 'rb'), verify=self.rootca, headers=headers_put)
-        print(res, res.content) # can remove once code no longer needs debugging
-
     def request_post(self, xml_output_name):
         """
-        Post target XML data to the database.
-        :param xml_output_name: ObservationID of target xml data
+        Post (new) target XML data onto the database. 
+        Note this is flipped and was formerly 'put' in torkeep.
+        In recommended curl command, --data item has an @ before it. --data "@TS8004_C_001_20190801_De.xml"
+        :param xml_output_name: ObservationID of xml file to post
         """
-        xml_output_name = xml_output_name.rstrip()
+        xml_output_name = "@" + xml_output_name
         url_post = self.url_maker(xml_output_name)
         print(repr(url_post)) # can remove once code no longer needs debugging
         post_file = xml_output_name
-        print(post_file) # can remove once code no longer needs debugging
-        headers_post = {'authorization': 'bearer {}'.format(self.ska_token), 'Content-type': 'text/xml'}
+        headers_post = {'Content-type': 'application/xml', 'accept: application/xml'}
         res = requests.post(url_post, data=open(post_file, 'rb'), verify=self.rootca, headers=headers_post)
         print(res, res.content) # can remove once code no longer needs debugging
-        print("URL:", url_post) # can remove once code no longer needs debugging
+
+    def request_put(self, xml_output_name):
+        """
+        Put (update) target XML data to the database.
+        Note this is flipped and was formerly 'post' in torkeep.
+        :param xml_output_name: ObservationID of target xml data
+        """
+        xml_output_name = xml_output_name.rstrip()
+        url_put = self.url_maker(xml_output_name)
+        print(repr(url_put)) # can remove once code no longer needs debugging
+        put_file = xml_output_name
+        print(put_file) # can remove once code no longer needs debugging
+        headers_put = {'Content-type': 'application/xml', 'accept: application/xml'}
+        res = requests.put(url_put, data=open(put_file, 'rb'), verify=self.rootca, headers=headers_put)
+        print(res, res.content) # can remove once code no longer needs debugging
+        print("URL:", url_put) # can remove once code no longer needs debugging
         print("Response Code:", res.status_code) # can remove once code no longer needs debugging
         print("Response Text:", res.text) # can remove once code no longer needs debugging
 
@@ -494,7 +498,7 @@ class EmerlinMetadata:
         """
         url_del = self.url_maker(to_del)
         print(url_del) # can remove once code no longer needs debugging
-        headers_del = {'authorization' : 'bearer {}'.format(self.ska_token)}
+        headers_del = {'accept: */*'}
         res = requests.delete(url_del, verify=self.rootca, headers=headers_del)
         print(res) # can remove once code no longer needs debugging
 
