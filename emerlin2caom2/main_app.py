@@ -469,7 +469,7 @@ class EmerlinMetadata:
         url_post = self.url_maker(xml_output_name)
         print(repr(url_post)) # can remove once code no longer needs debugging
         post_file = xml_output_name
-        headers_post = {'Content-type': 'application/xml', 'accept: application/xml'}
+        headers_post = {'Content-type': 'application/xml', 'accept': 'application/xml'}
         res = requests.post(url_post, data=open(post_file, 'rb'), verify=self.rootca, headers=headers_post)
         print(res, res.content) # can remove once code no longer needs debugging
 
@@ -484,7 +484,7 @@ class EmerlinMetadata:
         print(repr(url_put)) # can remove once code no longer needs debugging
         put_file = xml_output_name
         print(put_file) # can remove once code no longer needs debugging
-        headers_put = {'Content-type': 'application/xml', 'accept: application/xml'}
+        headers_put = {'Content-type': 'application/xml', 'accept': 'application/xml'}
         res = requests.put(url_put, data=open(put_file, 'rb'), verify=self.rootca, headers=headers_put)
         print(res, res.content) # can remove once code no longer needs debugging
         print("URL:", url_put) # can remove once code no longer needs debugging
