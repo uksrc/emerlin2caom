@@ -110,6 +110,24 @@ class EmerlinMetadata:
     pickle_file = storage_name + '/weblog/info/eMCP_info.txt'
     pickle_obj = emcp2dict(pickle_file)
     roles, target_ra, target_dec = role_extractor(pickle_obj)
+    polarization_states = {'I': PolarizationState.I,
+                         'Q': PolarizationState.Q,
+                         'U': PolarizationState.U,
+                         'V': PolarizationState.V,
+                         'RR': PolarizationState.RR,
+                         'LL': PolarizationState.LL,
+                         'RL': PolarizationState.RL,
+                         'LR': PolarizationState.LR,
+                         'XX': PolarizationState.XX,
+                         'YY': PolarizationState.YY,
+                         'XY': PolarizationState.XY,
+                         'YX': PolarizationState.YX,
+                         'POLI': PolarizationState.POLI,
+                         'FPOLI': PolarizationState.FPOLI,
+                         'POLA': PolarizationState.POLA,
+                         'EPOLI': PolarizationState.EPOLI,
+                         'CPOLI': PolarizationState.CPOLI,
+                         'NPOLI': PolarizationState.NPOLI}
 
 
     def artifact_metadata(self, observation, plane_id, artifact_full_name, plots):
@@ -217,8 +235,8 @@ class EmerlinMetadata:
         # The states values cannot be comprised of any strings or funcions. 
 
         pol_dim = int(ms_other["polar_dim"])
-        #pol_states = list(ms_other["polar_states"])
-        plane.polarization = Polarization(dimension = pol_dim, states = [PolarizationState.RR, PolarizationState.LL])
+        pol_states = (ms_other["polar_states"])
+        plane.polarization = Polarization(dimension=pol_dim, states=[self.polarization_states[pol] for pol in pol_states])
 
         # adjustment for different pipeline versions
         pipeline_name = self.pickle_obj['pipeline_path'].split('/')[-1]
