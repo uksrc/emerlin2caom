@@ -83,6 +83,7 @@ def ms_other_collect(ms_file):
         'polar_states': get_polar(ms_file)[0]
     }
 
+
     return ms_other_elements
 
 
@@ -130,7 +131,7 @@ def get_polar(ms_file):
     if pol_type == ['R','L']:
         pol_type = ['RR', 'LL']
     for i in range(len(pol_type)):
-        pol_type[i] = "PolarizationState." + pol_type[i]
+        pol_type[i] = pol_type[i]
  
     return pol_type, pol_dim
 
