@@ -130,7 +130,6 @@ class EmerlinMetadata:
                          'CPOLI': PolarizationState.CPOLI,
                          'NPOLI': PolarizationState.NPOLI}
 
-
     def artifact_metadata(self, observation, plane_id, artifact_full_name, plots):
         """
         Creates metadata for physical artifacts, including type, size and hash value
@@ -219,9 +218,6 @@ class EmerlinMetadata:
         plane.energy.sample_size = msmd_dict["chan_res"]
         plane.energy.dimension = msmd_dict["nchan"]      
  
-        # This doesn't break anything but also isn't printed to xml. caom2.5?
-        plane.energy.energy_bands = TypedSet(EnergyBand.RADIO)
-
         # Plane Time Object (2.5 bounds, samples required)
         # If more than one time sample needed, then use a for loop to add samples.
         time_sample = shape.SubInterval(ms_other["obs_start_time"], ms_other["obs_stop_time"])
