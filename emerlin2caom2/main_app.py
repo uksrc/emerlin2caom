@@ -100,7 +100,8 @@ class EmerlinMetadata:
     if xml_out_dir[-1] != '/':
         xml_out_dir += '/'
 
-    base_url = 'http://localhost:8080/observations/'
+    base_url = set_f.base_url
+    #base_url = 'http://localhost:8080/observations/'
     #base_url = 'https://src-data-repo.co.uk/torkeep/observations/EMERLIN'
     rootca = set_f.rootca
     #ska_token = set_f.ska_token
