@@ -63,7 +63,6 @@ def role_extractor(pickle_dict):
         role_rev[x] = "pointing_calibrator"
 
     target_names = role_rev.keys()
-    print(target_names)
     name_ra = []
     name_dec = []
     for name in target_names:
@@ -101,7 +100,7 @@ class EmerlinMetadata:
     if xml_out_dir[-1] != '/':
         xml_out_dir += '/'
 
-    base_url = 'http://localhost/8080/observations/'
+    base_url = 'http://localhost:8080/observations/'
     #base_url = 'https://src-data-repo.co.uk/torkeep/observations/EMERLIN'
     rootca = set_f.rootca
     #ska_token = set_f.ska_token
@@ -512,8 +511,7 @@ class EmerlinMetadata:
         """
         url_del = self.url_maker(to_del)
         print(url_del) # can remove once code no longer needs debugging
-        headers_del = {'accept: */*'}
-        res = requests.delete(url_del, verify=self.rootca, headers=headers_del)
+        res = requests.delete(url_del, verify=self.rootca)
         print(res) # can remove once code no longer needs debugging
 
     def request_get(self, file_to_get=''):
