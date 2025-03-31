@@ -276,7 +276,7 @@ class EmerlinMetadata:
         observation.intent = ObservationIntentType.SCIENCE
 
         observation.telescope = Telescope(casa_info['tel_name'][0])
-        observation.proposal = Proposal(casa_info['prop_id'])
+        # observation.proposal = Proposal(casa_info['prop_id']) # Un-comment once vo-dml sorted for proposal.id
         cart_coords = casa.polar2cart(casa_info['ante_pos'][ante_id]['m0']['value'],
                                      casa_info['ante_pos'][ante_id]['m1']['value'],
                                      casa_info['ante_pos'][ante_id]['m2']['value'])
@@ -321,7 +321,7 @@ class EmerlinMetadata:
         observation.target_position = TargetPosition(point, 'Equatorial') # J2000?
         observation.target_position.equinox = 2000.
 
-        observation.proposal = Proposal(casa_info['prop_id'])
+        # observation.proposal = Proposal(casa_info['prop_id']) # Uncomment once vo-dml sorted for proposal.id
 
         xml_output_name = self.xml_out_dir + self.obs_id + '_' + target_name + '.xml'
         writer = ObservationWriter()
