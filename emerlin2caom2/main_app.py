@@ -297,7 +297,7 @@ class EmerlinMetadata:
         if set_f.upload:
             if set_f.replace_old_data:
                 self.request_delete(xml_output_name)
-            self.request_put(xml_output_name)
+            self.request_post(xml_output_name)
 
         return observation
 
@@ -330,7 +330,7 @@ class EmerlinMetadata:
         if set_f.upload:
             if set_f.replace_old_data:
                 self.request_delete(xml_output_name)
-            self.request_put(xml_output_name)
+            self.request_post(xml_output_name)
 
         return observation
 
@@ -446,14 +446,14 @@ class EmerlinMetadata:
 
         # structure of observation outside of functions?
         xml_output_name = self.xml_out_dir + self.obs_id + '.xml'
-
+        
         writer = ObservationWriter()
         writer.write(observation, xml_output_name)
 
         if set_f.upload:
             if set_f.replace_old_data:
                 self.request_delete(xml_output_name)
-            self.request_put(xml_output_name)
+            self.request_post(xml_output_name)
             # self.request_put(xml_output_name)
             # if set_f.replace_old_data:
             #     try:
@@ -465,7 +465,7 @@ class EmerlinMetadata:
 
     def url_maker(self, xml_output_name):
         """
-        Construction of a URL to be used within a request to the torkeep service.
+        Construction of a URL to be used within a request to the archive service.
         :param xml_output_name: ObservationID of object to be targeted by URL
         :returns: URL of the target object and target torkeep collection
         """
@@ -479,13 +479,13 @@ class EmerlinMetadata:
         In recommended curl command, --data item has an @ before it. --data "@TS8004_C_001_20190801_De.xml"
         :param xml_output_name: ObservationID of xml file to post
         """
+        post_file = xml_output_name
         xml_output_name = "@" + xml_output_name
         url_post = self.url_maker(xml_output_name)
-        print(repr(url_post)) # can remove once code no longer needs debugging
-        post_file = xml_output_name
+        print('post: '+repr(url_post)) # can remove once code no longer needs debugging
         headers_post = {'Content-type': 'application/xml', 'accept': 'application/xml'}
         res = requests.post(url_post, data=open(post_file, 'rb'), verify=self.rootca, headers=headers_post)
-        print(res, res.content) # can remove once code no longer needs debugging
+        #print(res, res.content) # can remove once code no longer needs debugging
 
     def request_put(self, xml_output_name):
         """
@@ -495,7 +495,7 @@ class EmerlinMetadata:
         """
         xml_output_name = xml_output_name.rstrip()
         url_put = self.url_maker(xml_output_name)
-        print(repr(url_put)) # can remove once code no longer needs debugging
+        print('put: '+repr(url_put)) # can remove once code no longer needs debugging
         put_file = xml_output_name
         print(put_file) # can remove once code no longer needs debugging
         headers_put = {'Content-type': 'application/xml', 'accept': 'application/xml'}
