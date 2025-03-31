@@ -469,7 +469,11 @@ class EmerlinMetadata:
         :param xml_output_name: ObservationID of object to be targeted by URL
         :returns: URL of the target object and target torkeep collection
         """
-        made_url = self.base_url + '/' + '.'.join(xml_output_name.split('/')[-1].split('.')[:-1]).rstrip()
+        # Removing the url ending based on obsid as current archive-service uses DB-generated uuid for 
+        # url ending instead.  This needs sorting out, but currently will ingest the records to base_url,
+        # allowing for duplicates.  
+        # made_url = self.base_url + '/' + '.'.join(xml_output_name.split('/')[-1].split('.')[:-1]).rstrip()
+        made_url = self.base_url   # Remove/fix once decision taken on how to name url-ending.
         return made_url
 
     def request_post(self, xml_output_name):
