@@ -2,7 +2,7 @@ import os
 from os.path import exists
 from pathlib import Path
 import requests
-
+import pyvo as vo
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
     ReleaseType, ObservationWriter, Provenance, Position, Point, Energy, TargetPosition, \
@@ -450,11 +450,22 @@ class EmerlinMetadata:
         writer = ObservationWriter()
         writer.write(observation, xml_output_name)
 
+        # If uploading is enabled, check for existing data records matching uri.
+        # If a single record exists, and replacing data is enabled, then delete and
+        # replace.  If multiple records exist then log error for analysis. 
+
         if set_f.upload:
-            if set_f.replace_old_data:
-                self.request_delete(xml_output_name)
-            self.request_tap(self.obs_id)
-            self.request_post(xml_output_name)
+            machine_id = self.find_existing(self.obs_id)
+            if machine_id:
+                if (set_f.replace_old_data) and (len(machine_id) == 1):
+                    self.request_delete(machine_id)
+                    self.request_post(xml_output_name)
+                elif len(machine_id) > 1:
+                    print("Multiple records found; no action taken.")
+            else:    
+                self.request_post(xml_output_name)
+
+            #This is now deprecated but might set up a post soon?
             # self.request_put(xml_output_name)
             # if set_f.replace_old_data:
             #     try:
@@ -515,7 +526,7 @@ class EmerlinMetadata:
         Deletes target XML data on the database.
         :param to_del: ObservationID of target data to delete
         """
-        url_del = self.url_maker(to_del)
+        url_del = self.base_url + '/' + to_del
         print(url_del) # can remove once code no longer needs debugging
         res = requests.delete(url_del, verify=self.rootca)
         print(res) # can remove once code no longer needs debugging
@@ -525,22 +536,52 @@ class EmerlinMetadata:
         Get target data from database based on observations/uri.
         :param file_to_get: ObservationID of file to get
         """
-        url_get = self.base_url + '/' + file_to_get
+        payload = {'uri': file_to_get}
+        #url_get = self.base_url + '/' + file_to_get
+        url_get = self.base_url
         print(url_get) # can remove once code no longer needs debugging
-        res = requests.get(url_get, verify=self.rootca)
+        res = requests.get(url_get, params=payload, verify=self.rootca)
         print(res) # can remove once code no longer needs debugging
+        print(res.url)
 
+    def find_existing(self, obs_id):
+        """
+        Use pyvo TAP service to query for existing record before 
+        new record is inserted, or before delete/update.
+        :param obs_id: observation uri or unique identifier.
+        :returns: uuid aka primary key for db record for this uri.
+        """
+        url_tap = self.base_url.split('/observations')[0] + '/tap'
+        service = vo.dal.TAPService(url_tap)
+        #obs_id = 'TS8004_C_001_20190801'
+        uuid_query = "SELECT id FROM Observation WHERE uri="+"'"+obs_id+"'"
+        resultset = service.search(uuid_query)
+
+        if len(resultset) > 1:
+            print("Duplicate Records found:")
+            for row in resultset:
+                print(row['id'])
+            return resultset
+            # Add Error logging here.
+        elif len(resultset) == 1:
+            print(resultset[0]['id'])
+            return resultset[0]['id']
+        else:
+            print("No existing record found for" + obs_id)
+            # Add Error logging here.
     def request_tap(self, obs_id):
         """
         Use tap service to query for existence of observation and return uuid 
         :param obs_id: observation id or meaningful uri of the observation record.
         :returns machine_id: The record id used in the database as primary key.
         """
-        url_tap = self.base_url.split('/observations')[0] + '/tap/sync?REQUEST=doQuery&LANG=ADQL&FORMAT=json&QUERY=SELECT+*+FROM+Observation+WHERE+uri=%27' + obs_id + '%27'
+        url_tap = self.base_url.split('/observations')[0] + '/tap/sync?REQUEST=doQuery&LANG=ADQL&FORMAT=json&QUERY=SELECT+id+FROM+Observation+WHERE+uri=%27' + obs_id + '%27'
 
         if url_tap:
             print('location: ' + url_tap)
             res = requests.get(url_tap, verify=self.rootca)
             print(res)
+            print(res.text) 
+            print(res.text[1][0])
         else:
             print("tap didn't work.")
