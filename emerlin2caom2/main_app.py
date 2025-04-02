@@ -453,6 +453,7 @@ class EmerlinMetadata:
         if set_f.upload:
             if set_f.replace_old_data:
                 self.request_delete(xml_output_name)
+            self.request_tap(self.obs_id)
             self.request_post(xml_output_name)
             # self.request_put(xml_output_name)
             # if set_f.replace_old_data:
@@ -521,7 +522,7 @@ class EmerlinMetadata:
 
     def request_get(self, file_to_get=''):
         """
-        Get target data from database.
+        Get target data from database based on observations/uri.
         :param file_to_get: ObservationID of file to get
         """
         url_get = self.base_url + '/' + file_to_get
@@ -529,7 +530,17 @@ class EmerlinMetadata:
         res = requests.get(url_get, verify=self.rootca)
         print(res) # can remove once code no longer needs debugging
 
+    def request_tap(self, obs_id):
+        """
+        Use tap service to query for existence of observation and return uuid 
+        :param obs_id: observation id or meaningful uri of the observation record.
+        :returns machine_id: The record id used in the database as primary key.
+        """
+        url_tap = self.base_url.split('/observations')[0] + '/tap/sync?REQUEST=doQuery&LANG=ADQL&FORMAT=json&QUERY=SELECT+*+FROM+Observation+WHERE+uri=%27' + obs_id + '%27'
 
-
-
-
+        if url_tap:
+            print('location: ' + url_tap)
+            res = requests.get(url_tap, verify=self.rootca)
+            print(res)
+        else:
+            print("tap didn't work.")
