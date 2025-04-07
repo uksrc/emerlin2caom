@@ -295,9 +295,19 @@ class EmerlinMetadata:
         writer.write(observation, xml_output_name)
 
         if set_f.upload:
-            if set_f.replace_old_data:
-                self.request_delete(xml_output_name)
-            self.request_post(xml_output_name)
+            machine_id = self.find_existing(observation.uri)
+            print(machine_id)
+            if machine_id:
+                if (set_f.replace_old_data) and isinstance(machine_id, str):
+                    self.request_delete(machine_id)
+                    print(observation.uri + " delete attempted.")                       
+                    self.request_post(xml_output_name)
+                    print(observation.uri + " ingest attempted.")
+                else:
+                    print("Multiple records found; no action taken.")
+            else:   
+                self.request_post(xml_output_name)
+                print(observation.uri + " ingest attempted.")
 
         return observation
 
@@ -328,9 +338,19 @@ class EmerlinMetadata:
         writer.write(observation, xml_output_name)
 
         if set_f.upload:
-            if set_f.replace_old_data:
-                self.request_delete(xml_output_name)
-            self.request_post(xml_output_name)
+            machine_id = self.find_existing(observation.uri)
+            print(machine_id)
+            if machine_id:
+                if (set_f.replace_old_data) and isinstance(machine_id, str):
+                    self.request_delete(machine_id)
+                    print(observation.uri + " delete attempted.")                       
+                    self.request_post(xml_output_name)
+                    print(observation.uri + " ingest attempted.")
+                else:
+                    print("Multiple records found; no action taken.")
+            else:   
+                self.request_post(xml_output_name)
+                print(observation.uri + " ingest attempted.")
 
         return observation
 
@@ -454,17 +474,21 @@ class EmerlinMetadata:
         # If a single record exists, and replacing data is enabled, then delete and
         # replace.  If multiple records exist then log error for analysis. 
 
+        print(observation.uri)
         if set_f.upload:
-            machine_id = self.find_existing(self.obs_id)
+            machine_id = self.find_existing(observation.uri)
+            print(machine_id)
             if machine_id:
-                if (set_f.replace_old_data) and (len(machine_id) == 1):
+                if (set_f.replace_old_data) and isinstance(machine_id, str):
                     self.request_delete(machine_id)
+                    print(observation.uri + " delete attempted.")             
                     self.request_post(xml_output_name)
-                elif len(machine_id) > 1:
+                    print(observation.uri + " ingest attempted.")
+                else:
                     print("Multiple records found; no action taken.")
             else:    
                 self.request_post(xml_output_name)
-
+                print(observation.uri + " ingest attempted.") 
             #This is now deprecated but might set up a post soon?
             # self.request_put(xml_output_name)
             # if set_f.replace_old_data:
@@ -505,7 +529,7 @@ class EmerlinMetadata:
 
     def request_put(self, xml_output_name):
         """
-        Put (update) target XML data to the database.
+        Put (update) target XML data to the database. NEEDS UPDATING.
         Note this is flipped and was formerly 'post' in torkeep.
         :param xml_output_name: ObservationID of target xml data
         """
@@ -533,7 +557,7 @@ class EmerlinMetadata:
 
     def request_get(self, file_to_get=''):
         """
-        Get target data from database based on observations/uri.
+        Get target data from database based on observations/uri. NOT YET FUNCTIONAL WITH API.
         :param file_to_get: ObservationID of file to get
         """
         payload = {'uri': file_to_get}
@@ -556,7 +580,8 @@ class EmerlinMetadata:
         #obs_id = 'TS8004_C_001_20190801'
         uuid_query = "SELECT id FROM Observation WHERE uri="+"'"+obs_id+"'"
         resultset = service.search(uuid_query)
-
+        print(resultset)
+        print(len(resultset))
         if len(resultset) > 1:
             print("Duplicate Records found:")
             for row in resultset:
@@ -567,8 +592,9 @@ class EmerlinMetadata:
             print(resultset[0]['id'])
             return resultset[0]['id']
         else:
-            print("No existing record found for" + obs_id)
+            print("No existing record found for " + obs_id)
             # Add Error logging here.
+
     def request_tap(self, obs_id):
         """
         Use tap service to query for existence of observation and return uuid 
