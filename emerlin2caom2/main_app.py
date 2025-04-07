@@ -294,20 +294,7 @@ class EmerlinMetadata:
         writer = ObservationWriter()
         writer.write(observation, xml_output_name)
 
-        if set_f.upload:
-            machine_id = self.find_existing(observation.uri)
-            print(machine_id)
-            if machine_id:
-                if (set_f.replace_old_data) and isinstance(machine_id, str):
-                    self.request_delete(machine_id)
-                    print(observation.uri + " delete attempted.")                       
-                    self.request_post(xml_output_name)
-                    print(observation.uri + " ingest attempted.")
-                else:
-                    print("Multiple records found; no action taken.")
-            else:   
-                self.request_post(xml_output_name)
-                print(observation.uri + " ingest attempted.")
+        self.ingest_manager(observation.uri, xml_output_name)
 
         return observation
 
@@ -337,20 +324,7 @@ class EmerlinMetadata:
         writer = ObservationWriter()
         writer.write(observation, xml_output_name)
 
-        if set_f.upload:
-            machine_id = self.find_existing(observation.uri)
-            print(machine_id)
-            if machine_id:
-                if (set_f.replace_old_data) and isinstance(machine_id, str):
-                    self.request_delete(machine_id)
-                    print(observation.uri + " delete attempted.")                       
-                    self.request_post(xml_output_name)
-                    print(observation.uri + " ingest attempted.")
-                else:
-                    print("Multiple records found; no action taken.")
-            else:   
-                self.request_post(xml_output_name)
-                print(observation.uri + " ingest attempted.")
+        self.ingest_manager(observation.uri, xml_output_name)
 
         return observation
 
@@ -473,31 +447,38 @@ class EmerlinMetadata:
         # If uploading is enabled, check for existing data records matching uri.
         # If a single record exists, and replacing data is enabled, then delete and
         # replace.  If multiple records exist then log error for analysis. 
+        self.ingest_manager(observation.uri, xml_output_name)
 
-        print(observation.uri)
+    def ingest_manager(self, obs_uri, xml_output_name):
+        """
+        Conditional to check for existing records, upload status, and unexpected duplicates,
+        and decide what to do next, with warnings/prints to log.  
+        :obs_uri: uri from observation i.e. TS8004_C_001_20190801_1252+5634
+        :param xml_output_name: xml file containing metadata to ingest.  
+        """ 
         if set_f.upload:
-            machine_id = self.find_existing(observation.uri)
-            print(machine_id)
+            machine_id = self.find_existing(obs_uri)
             if machine_id:
                 if (set_f.replace_old_data) and isinstance(machine_id, str):
-                    self.request_delete(machine_id)
-                    print(observation.uri + " delete attempted.")             
-                    self.request_post(xml_output_name)
-                    print(observation.uri + " ingest attempted.")
+                    del_stat = self.request_delete(machine_id)
+                    if del_stat == 204:
+                        print(obs_uri + " deleted.")
+                    else:
+                        print(obs_uri + " attempted delete with status code " + del_stat)
+                    create_stat = self.request_post(xml_output_name)
+                    if create_stat == 201:
+                        print(obs_uri + " ingested.")
+                    else:
+                        print(obs_uri + "attempted update with status code: " + create_stat)
                 else:
                     print("Multiple records found; no action taken.")
-            else:    
-                self.request_post(xml_output_name)
-                print(observation.uri + " ingest attempted.") 
-            #This is now deprecated but might set up a post soon?
-            # self.request_put(xml_output_name)
-            # if set_f.replace_old_data:
-            #     try:
-            #         self.request_post(xml_output_name)
-            #     except requests.exceptions.RequestException:
-            #           pass
-            # else:
-            #     self.request_put(xml_output_name)
+            else:
+                create_stat = self.request_post(xml_output_name)
+                if create_stat == 201:
+                    print(obs_uri + " ingested.")
+                else:
+                    print(obs_uri + "attempted update with status code: " + create_stat)
+
 
     def url_maker(self, xml_output_name):
         """
@@ -506,8 +487,8 @@ class EmerlinMetadata:
         :returns: URL of the target object and target torkeep collection
         """
         # Removing the url ending based on obsid as current archive-service uses DB-generated uuid for 
-        # url ending instead.  This needs sorting out, but currently will ingest the records to base_url,
-        # allowing for duplicates.  
+        # url ending instead. Considering update to java api to include method for obs_id.
+        #
         # made_url = self.base_url + '/' + '.'.join(xml_output_name.split('/')[-1].split('.')[:-1]).rstrip()
         made_url = self.base_url   # Remove/fix once decision taken on how to name url-ending.
         return made_url
@@ -522,14 +503,15 @@ class EmerlinMetadata:
         post_file = xml_output_name
         xml_output_name = "@" + xml_output_name
         url_post = self.url_maker(xml_output_name)
-        print('post: '+repr(url_post)) # can remove once code no longer needs debugging
         headers_post = {'Content-type': 'application/xml', 'accept': 'application/xml'}
         res = requests.post(url_post, data=open(post_file, 'rb'), verify=self.rootca, headers=headers_post)
-        #print(res, res.content) # can remove once code no longer needs debugging
+        # print(res.status_code) # can remove once code no longer needs debugging
+        return res.status_code
+
 
     def request_put(self, xml_output_name):
         """
-        Put (update) target XML data to the database. NEEDS UPDATING.
+        Put (update) target XML data to the database. NEEDS UPDATING; currently unused.
         Note this is flipped and was formerly 'post' in torkeep.
         :param xml_output_name: ObservationID of target xml data
         """
@@ -551,9 +533,13 @@ class EmerlinMetadata:
         :param to_del: ObservationID of target data to delete
         """
         url_del = self.base_url + '/' + to_del
-        print(url_del) # can remove once code no longer needs debugging
+        # print(url_del) # can remove once code no longer needs debugging
         res = requests.delete(url_del, verify=self.rootca)
-        print(res) # can remove once code no longer needs debugging
+        if res.status_code == 204:
+            print(to_del + " has been deleted.") 
+        else:
+            print(res.status_code + ": Delete may have failed for " + to_del) # can remove once code no longer needs debugging
+        return res.status_code
 
     def request_get(self, file_to_get=''):
         """
@@ -566,33 +552,29 @@ class EmerlinMetadata:
         print(url_get) # can remove once code no longer needs debugging
         res = requests.get(url_get, params=payload, verify=self.rootca)
         print(res) # can remove once code no longer needs debugging
-        print(res.url)
 
     def find_existing(self, obs_id):
         """
         Use pyvo TAP service to query for existing record before 
         new record is inserted, or before delete/update.
         :param obs_id: observation uri or unique identifier.
-        :returns: uuid aka primary key for db record for this uri.
+        :returns: if exists, the uuid aka primary key for db record(s) for this uri.
         """
         url_tap = self.base_url.split('/observations')[0] + '/tap'
         service = vo.dal.TAPService(url_tap)
-        #obs_id = 'TS8004_C_001_20190801'
         uuid_query = "SELECT id FROM Observation WHERE uri="+"'"+obs_id+"'"
         resultset = service.search(uuid_query)
-        print(resultset)
-        print(len(resultset))
         if len(resultset) > 1:
-            print("Duplicate Records found:")
+            print("Duplicate Records found for: " + obs_id)
             for row in resultset:
                 print(row['id'])
             return resultset
             # Add Error logging here.
         elif len(resultset) == 1:
-            print(resultset[0]['id'])
+            # print(resultset[0]['id'])
             return resultset[0]['id']
         else:
-            print("No existing record found for " + obs_id)
+            print("No existing record found for " + obs_id + ". Ok to ingest.")
             # Add Error logging here.
 
     def request_tap(self, obs_id):
