@@ -2,10 +2,13 @@ import os
 from os.path import exists
 from pathlib import Path
 import requests
+import pyvo as vo
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
-    ReleaseType, ObservationWriter, ProductType, ChecksumURI, Provenance, Position, Point, Energy, TargetPosition, \
-    Interval, TypedSet, Polarization, shape, Proposal, Instrument, DerivedObservation, Time, DataProductType
+    ReleaseType, ObservationWriter, Provenance, Position, Point, Energy, TargetPosition, \
+    Interval, TypedSet, Polarization, shape, Proposal, Instrument, DerivedObservation, Time, DataProductType, \
+    PolarizationState, DataLinkSemantics, EnergyBand
+
 from pkg_resources import Environment
 from setuptools.config.expand import canonic_data_files
 
@@ -13,6 +16,7 @@ import casa_reader as casa
 import file_metadata as msmd
 import fits_reader as fr
 import settings_file as set_f
+import api_requests as api
 
 __all__ = [
     'EmerlinMetadata',
@@ -60,7 +64,6 @@ def role_extractor(pickle_dict):
         role_rev[x] = "pointing_calibrator"
 
     target_names = role_rev.keys()
-    print(target_names)
     name_ra = []
     name_dec = []
     for name in target_names:
@@ -98,16 +101,35 @@ class EmerlinMetadata:
     if xml_out_dir[-1] != '/':
         xml_out_dir += '/'
 
-    base_url = 'https://src-data-repo.co.uk/torkeep/observations/EMERLIN'
+    base_url = set_f.base_url
+    #base_url = 'http://localhost:8080/observations/'
+    #base_url = 'https://src-data-repo.co.uk/torkeep/observations/EMERLIN'
     rootca = set_f.rootca
-    ska_token = set_f.ska_token
+    #ska_token = set_f.ska_token
     obs_id = basename(storage_name)
     ms_dir_main = storage_name + '/{}_avg.ms'.format(obs_id)  # maybe flimsy? depends on the rigidity of the em pipeline
     ms_dir_spectral = storage_name + '/{}_sp.ms'.format(obs_id)
     pickle_file = storage_name + '/weblog/info/eMCP_info.txt'
     pickle_obj = emcp2dict(pickle_file)
     roles, target_ra, target_dec = role_extractor(pickle_obj)
-
+    polarization_states = {'I': PolarizationState.I,
+                         'Q': PolarizationState.Q,
+                         'U': PolarizationState.U,
+                         'V': PolarizationState.V,
+                         'RR': PolarizationState.RR,
+                         'LL': PolarizationState.LL,
+                         'RL': PolarizationState.RL,
+                         'LR': PolarizationState.LR,
+                         'XX': PolarizationState.XX,
+                         'YY': PolarizationState.YY,
+                         'XY': PolarizationState.XY,
+                         'YX': PolarizationState.YX,
+                         'POLI': PolarizationState.POLI,
+                         'FPOLI': PolarizationState.FPOLI,
+                         'POLA': PolarizationState.POLA,
+                         'EPOLI': PolarizationState.EPOLI,
+                         'CPOLI': PolarizationState.CPOLI,
+                         'NPOLI': PolarizationState.NPOLI}
 
     def artifact_metadata(self, observation, plane_id, artifact_full_name, plots):
         """
@@ -120,13 +142,13 @@ class EmerlinMetadata:
         plane = observation.planes[plane_id]
         art_uri = 'uri:{}'.format(plots)
 
-        artifact = Artifact(art_uri, ProductType.AUXILIARY, ReleaseType.DATA)
+        artifact = Artifact(art_uri, DataLinkSemantics.AUXILIARY, ReleaseType.DATA)
         plane.artifacts[art_uri] = artifact
         meta_data = msmd.get_local_file_info(artifact_full_name)
 
         artifact.content_type = meta_data.file_type
         artifact.content_length = meta_data.size
-        artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
+        artifact.content_checksum = 'md5:{}'.format(meta_data.md5sum)
 
 
     def fits_plane_metadata(self, observation, fits_full_name, images, plane_id):
@@ -142,8 +164,7 @@ class EmerlinMetadata:
         plane = observation.planes[plane_id]
         fits_header_data = fr.header_extraction(fits_full_name + images)
 
-        position = Position()
-        plane.position = position
+
         ra_pos = fits_header_data['ra_deg']
         print(ra_pos)
         if ra_pos < 0:
@@ -154,12 +175,17 @@ class EmerlinMetadata:
         height = abs(fits_header_data['pix_length'] * fits_header_data['pix_length_scale'])
         radius = 0.5 * width
         # plane.position.bounds = shape.Box(centre, radius)
-        plane.position.bounds = shape.Circle(centre, radius)
+        position = Position(shape.Circle(centre, radius), shape.MultiShape([shape.Circle(centre, radius)]))
+        plane.position = position
+        # plane.position.bounds = shape.Circle(centre, radius)
         # should be box but is unsupported by the writer, neither is point
 
-        energy = Energy()
-        plane.energy = energy
-        plane.energy.restwav = casa.freq2wl(fits_header_data['central_freq'])  # change freq to wav and check against model
+        ### REMOVED AS WE NEED TO ADD "bounds" and "samples" which we do not want
+        ### Did they intend to make these quantities mandatory. 
+        ### Yes, intended, but can we not get these?
+        rest_energy = casa.freq2wl(fits_header_data['central_freq'])
+        plane.energy = Energy(Interval(rest_energy, rest_energy), [shape.SubInterval(rest_energy, rest_energy)])
+        plane.energy.rest = rest_energy
 
         provenance = Provenance(images)
         plane.provenance = provenance
@@ -185,35 +211,30 @@ class EmerlinMetadata:
         #Release date to-do convert to ivoa:datetime
         plane.data_release = ms_other["data_release"]
 
-        # Make an Energy object for this Plane
-        plane.energy = Energy()
+        # Make an Energy object for this Plane (bounds,samples required)
+        plane.energy = Energy(Interval(msmd_dict["wl_lower"], msmd_dict["wl_upper"]), [shape.SubInterval(msmd_dict["wl_lower"], msmd_dict["wl_upper"])]) 
 
-        # Assign Energy object metadata
-        sample = shape.SubInterval(msmd_dict["wl_lower"], msmd_dict["wl_upper"])
-        plane.energy.bounds = Interval(msmd_dict["wl_lower"], msmd_dict["wl_upper"], samples=[sample])
         plane.energy.bandpass_name = str(msmd_dict["bp_name"])
         
         plane.energy.sample_size = msmd_dict["chan_res"]
         plane.energy.dimension = msmd_dict["nchan"]      
  
-        # This doesn't break anything but also isn't printed to xml. caom2.5?
-        plane.energy.energy_bands = TypedSet('Radio')
-
-        # Plane Time Object
-        plane.time = Time()
-        
+        # Plane Time Object (2.5 bounds, samples required)
+        # If more than one time sample needed, then use a for loop to add samples.
         time_sample = shape.SubInterval(ms_other["obs_start_time"], ms_other["obs_stop_time"])
-        plane.time.bounds = Interval(ms_other["obs_start_time"], ms_other["obs_stop_time"], samples=[time_sample])
+        time_bounds = Interval(ms_other["obs_start_time"], ms_other["obs_stop_time"])
+        plane.time = Time(time_bounds, [time_sample])
+        
         #plane.time.exposure = msmd_dict["int_time"]
         #plane.time.dimension = msmd_dict["num_scans"]
 
-        plane.polarization = Polarization()
-        #pol_states, dim = casa.get_polar(ms_dir)
-        
-        plane.polarization.dimension = int(ms_other["polar_dim"])
+        # Polarisation (Polarization) object needs at least one state as arg.
+        # For now this is hard-coded, as this is the only way I can get it to pass xml validation.
+        # The states values cannot be comprised of any strings or funcions. 
 
-        # This one isn't working quite right yet-- see obs_reader_writer.py
-        # plane.polarization.polarization_states = pol_states
+        pol_dim = int(ms_other["polar_dim"])
+        pol_states = (ms_other["polar_states"])
+        plane.polarization = Polarization(dimension=pol_dim, states=[self.polarization_states[pol] for pol in pol_states])
 
         # adjustment for different pipeline versions
         pipeline_name = self.pickle_obj['pipeline_path'].split('/')[-1]
@@ -230,14 +251,14 @@ class EmerlinMetadata:
 
         art_uri = 'uri:{}'.format(ms_name)
 
-        artifact = Artifact(art_uri, ProductType.SCIENCE, ReleaseType.DATA)
+        artifact = Artifact(art_uri, DataLinkSemantics.THIS, ReleaseType.DATA)
         plane.artifacts[art_uri] = artifact
 
         meta_data = msmd.get_local_file_info(ms_dir)
 
         artifact.content_type = meta_data.file_type
         artifact.content_length = meta_data.size
-        artifact.content_checksum = ChecksumURI('md5:{}'.format(meta_data.md5sum))
+        artifact.content_checksum = 'md5:{}'.format(meta_data.md5sum)
 
         return plane
         ### These components need their output value to be changed somewhat
@@ -256,7 +277,7 @@ class EmerlinMetadata:
         observation.intent = ObservationIntentType.SCIENCE
 
         observation.telescope = Telescope(casa_info['tel_name'][0])
-        observation.proposal = Proposal(casa_info['prop_id'])
+        # observation.proposal = Proposal(casa_info['prop_id']) # Un-comment once vo-dml sorted for proposal.id
         cart_coords = casa.polar2cart(casa_info['ante_pos'][ante_id]['m0']['value'],
                                      casa_info['ante_pos'][ante_id]['m1']['value'],
                                      casa_info['ante_pos'][ante_id]['m2']['value'])
@@ -274,10 +295,7 @@ class EmerlinMetadata:
         writer = ObservationWriter()
         writer.write(observation, xml_output_name)
 
-        if set_f.upload:
-            if set_f.replace_old_data:
-                self.request_delete(xml_output_name)
-            self.request_put(xml_output_name)
+        self.ingest_manager(observation.uri, xml_output_name)
 
         return observation
 
@@ -301,16 +319,13 @@ class EmerlinMetadata:
         observation.target_position = TargetPosition(point, 'Equatorial') # J2000?
         observation.target_position.equinox = 2000.
 
-        observation.proposal = Proposal(casa_info['prop_id'])
+        # observation.proposal = Proposal(casa_info['prop_id']) # Uncomment once vo-dml sorted for proposal.id
 
         xml_output_name = self.xml_out_dir + self.obs_id + '_' + target_name + '.xml'
         writer = ObservationWriter()
         writer.write(observation, xml_output_name)
 
-        if set_f.upload:
-            if set_f.replace_old_data:
-                self.request_delete(xml_output_name)
-            self.request_put(xml_output_name)
+        self.ingest_manager(observation.uri, xml_output_name)
 
         return observation
 
@@ -328,13 +343,13 @@ class EmerlinMetadata:
 
         for tele in range(len(casa_info['antennas'])):
             simple_observation = self.build_simple_observation_telescope(casa_info, tele)
-            observation.members.add(simple_observation.get_uri())
+            observation.members.add(simple_observation.uri)
 
         target_information = casa.target_position_all(self.ms_dir_main)
         for i, targ in enumerate(target_information["name"]):
             simple_observation = self.build_simple_observation_target(casa_info, targ, target_information["ra"][i],
                                                                       target_information["dec"][i])
-            observation.members.add(simple_observation.get_uri())
+            observation.members.add(simple_observation.uri)
 
         observation.obs_type = 'science'
         observation.intent = ObservationIntentType.SCIENCE
@@ -370,7 +385,7 @@ class EmerlinMetadata:
 
         ms_plane_id = basename(self.ms_dir_main)
         plane = Plane(ms_plane_id)
-        plane.data_product_type = DataProductType('measurements')
+        plane.data_product_type = DataProductType('visibility')
         observation.planes[ms_plane_id] = plane
         plane_id_list.append(ms_plane_id)
         self.measurement_set_metadata(observation, self.ms_dir_main, ms_plane_id)
@@ -426,84 +441,43 @@ class EmerlinMetadata:
 
         # structure of observation outside of functions?
         xml_output_name = self.xml_out_dir + self.obs_id + '.xml'
-
+        
         writer = ObservationWriter()
         writer.write(observation, xml_output_name)
 
+        # If uploading is enabled, check for existing data records matching uri.
+        # If a single record exists, and replacing data is enabled, then delete and
+        # replace.  If multiple records exist then log error for analysis. 
+        self.ingest_manager(observation.uri, xml_output_name)
+
+    def ingest_manager(self, obs_uri, xml_output_name):
+        """
+        Conditional to check for existing records, upload status, and unexpected duplicates,
+        and decide what to do next, with warnings/prints to log.  
+        :obs_uri: uri from observation i.e. TS8004_C_001_20190801_1252+5634
+        :param xml_output_name: xml file containing metadata to ingest.  
+        """ 
         if set_f.upload:
-            if set_f.replace_old_data:
-                self.request_delete(xml_output_name)
-            self.request_put(xml_output_name)
-            # self.request_put(xml_output_name)
-            # if set_f.replace_old_data:
-            #     try:
-            #         self.request_post(xml_output_name)
-            #     except requests.exceptions.RequestException:
-            #           pass
-            # else:
-            #     self.request_put(xml_output_name)
-
-    def url_maker(self, xml_output_name):
-        """
-        Construction of a URL to be used within a request to the torkeep service.
-        :param xml_output_name: ObservationID of object to be targeted by URL
-        :returns: URL of the target object and target torkeep collection
-        """
-        made_url = self.base_url + '/' + '.'.join(xml_output_name.split('/')[-1].split('.')[:-1]).rstrip()
-        return made_url
-
-    def request_put(self, xml_output_name):
-        """
-        Put target XML data onto the database.
-        :param xml_output_name: ObservationID of xml file to put
-        """
-        xml_output_name = xml_output_name
-        url_put = self.url_maker(xml_output_name)
-        print(repr(url_put)) # can remove once code no longer needs debugging
-        put_file = xml_output_name
-        headers_put = {'authorization' : 'bearer {}'.format(self.ska_token), 'Content-type': 'text/xml'}
-        res = requests.put(url_put, data=open(put_file, 'rb'), verify=self.rootca, headers=headers_put)
-        print(res, res.content) # can remove once code no longer needs debugging
-
-    def request_post(self, xml_output_name):
-        """
-        Post target XML data to the database.
-        :param xml_output_name: ObservationID of target xml data
-        """
-        xml_output_name = xml_output_name.rstrip()
-        url_post = self.url_maker(xml_output_name)
-        print(repr(url_post)) # can remove once code no longer needs debugging
-        post_file = xml_output_name
-        print(post_file) # can remove once code no longer needs debugging
-        headers_post = {'authorization': 'bearer {}'.format(self.ska_token), 'Content-type': 'text/xml'}
-        res = requests.post(url_post, data=open(post_file, 'rb'), verify=self.rootca, headers=headers_post)
-        print(res, res.content) # can remove once code no longer needs debugging
-        print("URL:", url_post) # can remove once code no longer needs debugging
-        print("Response Code:", res.status_code) # can remove once code no longer needs debugging
-        print("Response Text:", res.text) # can remove once code no longer needs debugging
-
-    def request_delete(self, to_del):
-        """
-        Deletes target XML data on the database.
-        :param to_del: ObservationID of target data to delete
-        """
-        url_del = self.url_maker(to_del)
-        print(url_del) # can remove once code no longer needs debugging
-        headers_del = {'authorization' : 'bearer {}'.format(self.ska_token)}
-        res = requests.delete(url_del, verify=self.rootca, headers=headers_del)
-        print(res) # can remove once code no longer needs debugging
-
-    def request_get(self, file_to_get=''):
-        """
-        Get target data from database.
-        :param file_to_get: ObservationID of file to get
-        """
-        url_get = self.base_url + '/' + file_to_get
-        print(url_get) # can remove once code no longer needs debugging
-        res = requests.get(url_get, verify=self.rootca)
-        print(res) # can remove once code no longer needs debugging
-
-
-
+            machine_id = api.find_existing(self, obs_uri)
+            if machine_id:
+                if (set_f.replace_old_data) and isinstance(machine_id, str):
+                    del_stat = api.request_delete(self, machine_id)
+                    if del_stat == 204:
+                        print(obs_uri + " deleted.")
+                    else:
+                        print(obs_uri + " attempted delete with status code " + del_stat)
+                    create_stat = api.request_post(self, xml_output_name)
+                    if create_stat == 201:
+                        print(obs_uri + " ingested.")
+                    else:
+                        print(obs_uri + "attempted update with status code: " + create_stat)
+                else:
+                    print("Multiple records found; no action taken.")
+            else:
+                create_stat = api.request_post(self, xml_output_name)
+                if create_stat == 201:
+                    print(obs_uri + " ingested.")
+                else:
+                    print(obs_uri + "attempted update with status code: " + create_stat)
 
 

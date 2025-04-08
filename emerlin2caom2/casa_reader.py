@@ -79,8 +79,10 @@ def ms_other_collect(ms_file):
         'data_release': get_release_date(ms_file),
         'obs_start_time': get_obstime(ms_file)[0],
         'obs_stop_time': get_obstime(ms_file)[1],
-        'polar_dim': get_polar(ms_file)[1]
+        'polar_dim': get_polar(ms_file)[1],
+        'polar_states': get_polar(ms_file)[0]
     }
+
 
     return ms_other_elements
 
@@ -126,7 +128,25 @@ def get_polar(ms_file):
     pol_dim = tb.getcol('NUM_RECEPTORS')[0]
     tb.close()
     pol_type = list(polarization[:,0])    
+    if pol_type == ['R','L']:
+        pol_type = ['RR', 'LL']
+    for i in range(len(pol_type)):
+        pol_type[i] = pol_type[i]
+ 
     return pol_type, pol_dim
+
+def get_uvdist(ms_file):
+    """
+    Collect list of uvdistances or baselines.
+    :param ms_file: Name of measurement set
+    :returns: list of uv distances in m.
+    """
+    tb.open(ms_file)
+    uvw = tb.getcol('UVW')
+    tb.close()
+    uvdist = numpy.sqrt(uvw[0]**2+uvw[1]**2)
+    
+    return uvdist
 
 def get_scan_sum(ms_file):
     """
