@@ -2,7 +2,7 @@ import os
 from os.path import exists
 from pathlib import Path
 import requests
-
+import pyvo as vo
 
 from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, TypedOrderedDict, Plane, Artifact, \
     ReleaseType, ObservationWriter, Provenance, Position, Point, Energy, TargetPosition, \
@@ -16,6 +16,7 @@ import casa_reader as casa
 import file_metadata as msmd
 import fits_reader as fr
 import settings_file as set_f
+import api_requests as api
 
 __all__ = [
     'EmerlinMetadata',
@@ -294,10 +295,7 @@ class EmerlinMetadata:
         writer = ObservationWriter()
         writer.write(observation, xml_output_name)
 
-        if set_f.upload:
-            if set_f.replace_old_data:
-                self.request_delete(xml_output_name)
-            self.request_post(xml_output_name)
+        self.ingest_manager(observation.uri, xml_output_name)
 
         return observation
 
@@ -327,10 +325,7 @@ class EmerlinMetadata:
         writer = ObservationWriter()
         writer.write(observation, xml_output_name)
 
-        if set_f.upload:
-            if set_f.replace_old_data:
-                self.request_delete(xml_output_name)
-            self.request_post(xml_output_name)
+        self.ingest_manager(observation.uri, xml_output_name)
 
         return observation
 
@@ -450,86 +445,39 @@ class EmerlinMetadata:
         writer = ObservationWriter()
         writer.write(observation, xml_output_name)
 
+        # If uploading is enabled, check for existing data records matching uri.
+        # If a single record exists, and replacing data is enabled, then delete and
+        # replace.  If multiple records exist then log error for analysis. 
+        self.ingest_manager(observation.uri, xml_output_name)
+
+    def ingest_manager(self, obs_uri, xml_output_name):
+        """
+        Conditional to check for existing records, upload status, and unexpected duplicates,
+        and decide what to do next, with warnings/prints to log.  
+        :obs_uri: uri from observation i.e. TS8004_C_001_20190801_1252+5634
+        :param xml_output_name: xml file containing metadata to ingest.  
+        """ 
         if set_f.upload:
-            if set_f.replace_old_data:
-                self.request_delete(xml_output_name)
-            self.request_post(xml_output_name)
-            # self.request_put(xml_output_name)
-            # if set_f.replace_old_data:
-            #     try:
-            #         self.request_post(xml_output_name)
-            #     except requests.exceptions.RequestException:
-            #           pass
-            # else:
-            #     self.request_put(xml_output_name)
-
-    def url_maker(self, xml_output_name):
-        """
-        Construction of a URL to be used within a request to the archive service.
-        :param xml_output_name: ObservationID of object to be targeted by URL
-        :returns: URL of the target object and target torkeep collection
-        """
-        # Removing the url ending based on obsid as current archive-service uses DB-generated uuid for 
-        # url ending instead.  This needs sorting out, but currently will ingest the records to base_url,
-        # allowing for duplicates.  
-        # made_url = self.base_url + '/' + '.'.join(xml_output_name.split('/')[-1].split('.')[:-1]).rstrip()
-        made_url = self.base_url   # Remove/fix once decision taken on how to name url-ending.
-        return made_url
-
-    def request_post(self, xml_output_name):
-        """
-        Post (new) target XML data onto the database. 
-        Note this is flipped and was formerly 'put' in torkeep.
-        In recommended curl command, --data item has an @ before it. --data "@TS8004_C_001_20190801_De.xml"
-        :param xml_output_name: ObservationID of xml file to post
-        """
-        post_file = xml_output_name
-        xml_output_name = "@" + xml_output_name
-        url_post = self.url_maker(xml_output_name)
-        print('post: '+repr(url_post)) # can remove once code no longer needs debugging
-        headers_post = {'Content-type': 'application/xml', 'accept': 'application/xml'}
-        res = requests.post(url_post, data=open(post_file, 'rb'), verify=self.rootca, headers=headers_post)
-        #print(res, res.content) # can remove once code no longer needs debugging
-
-    def request_put(self, xml_output_name):
-        """
-        Put (update) target XML data to the database.
-        Note this is flipped and was formerly 'post' in torkeep.
-        :param xml_output_name: ObservationID of target xml data
-        """
-        xml_output_name = xml_output_name.rstrip()
-        url_put = self.url_maker(xml_output_name)
-        print('put: '+repr(url_put)) # can remove once code no longer needs debugging
-        put_file = xml_output_name
-        print(put_file) # can remove once code no longer needs debugging
-        headers_put = {'Content-type': 'application/xml', 'accept': 'application/xml'}
-        res = requests.put(url_put, data=open(put_file, 'rb'), verify=self.rootca, headers=headers_put)
-        print(res, res.content) # can remove once code no longer needs debugging
-        print("URL:", url_put) # can remove once code no longer needs debugging
-        print("Response Code:", res.status_code) # can remove once code no longer needs debugging
-        print("Response Text:", res.text) # can remove once code no longer needs debugging
-
-    def request_delete(self, to_del):
-        """
-        Deletes target XML data on the database.
-        :param to_del: ObservationID of target data to delete
-        """
-        url_del = self.url_maker(to_del)
-        print(url_del) # can remove once code no longer needs debugging
-        res = requests.delete(url_del, verify=self.rootca)
-        print(res) # can remove once code no longer needs debugging
-
-    def request_get(self, file_to_get=''):
-        """
-        Get target data from database.
-        :param file_to_get: ObservationID of file to get
-        """
-        url_get = self.base_url + '/' + file_to_get
-        print(url_get) # can remove once code no longer needs debugging
-        res = requests.get(url_get, verify=self.rootca)
-        print(res) # can remove once code no longer needs debugging
-
-
-
+            machine_id = api.find_existing(self, obs_uri)
+            if machine_id:
+                if (set_f.replace_old_data) and isinstance(machine_id, str):
+                    del_stat = api.request_delete(self, machine_id)
+                    if del_stat == 204:
+                        print(obs_uri + " deleted.")
+                    else:
+                        print(obs_uri + " attempted delete with status code " + del_stat)
+                    create_stat = api.request_post(self, xml_output_name)
+                    if create_stat == 201:
+                        print(obs_uri + " ingested.")
+                    else:
+                        print(obs_uri + "attempted update with status code: " + create_stat)
+                else:
+                    print("Multiple records found; no action taken.")
+            else:
+                create_stat = api.request_post(self, xml_output_name)
+                if create_stat == 201:
+                    print(obs_uri + " ingested.")
+                else:
+                    print(obs_uri + "attempted update with status code: " + create_stat)
 
 
