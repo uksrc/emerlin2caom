@@ -31,20 +31,6 @@ def request_delete(self, to_del):
         print(res.status_code + ": Delete may have failed for " + to_del) # can remove once code no longer needs debugging
     return res.status_code
 
-def request_delete(self, to_del):
-    """
-    Deletes target XML data on the database.
-    :param to_del: ObservationID of target data to delete
-    """
-    url_del = self.base_url + '/' + to_del
-    # print(url_del) # can remove once code no longer needs debugging
-    res = requests.delete(url_del, verify=self.rootca)
-    if res.status_code == 204:
-        print(to_del + " has been deleted.")
-    else:
-        print(res.status_code + ": Delete may have failed for " + to_del) # can remove once code no longer needs debugging
-    return res.status_code
-
 def request_get(self, file_to_get=''):
     """
     Get target data from database based on observations/uri. NOT YET FUNCTIONAL WITH API.
