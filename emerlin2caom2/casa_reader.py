@@ -135,6 +135,19 @@ def get_polar(ms_file):
  
     return pol_type, pol_dim
 
+def get_uvdist(ms_file):
+    """
+    Collect list of uvdistances or baselines.
+    :param ms_file: Name of measurement set
+    :returns: list of uv distances in m.
+    """
+    tb.open(ms_file)
+    uvw = tb.getcol('UVW')
+    tb.close()
+    uvdist = numpy.sqrt(uvw[0]**2+uvw[1]**2)
+    
+    return uvdist
+
 def get_scan_sum(ms_file):
     """
     Get summary for scan information
