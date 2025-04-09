@@ -5,6 +5,7 @@ Code to import [e-MERLIN](https://www.e-merlin.ac.uk) [pipeline](https://github.
 This has been created from the blank2caom2 template
 
 ## Description
+Now deprecated, this 'old' version of emerlin2caom is based on CAOM2.4 and interacts with the test torkeep service, [caomdev](https://github.com/uksrc/caomdev).  The emerlin2caom package in main uses CAOM2.5 version data model, CAOM2.5 version caom2tools, and a new [archive service](https://github.com/uksrc/archive-service). 
 
 The codebase takes the output directory of the emerlin casa pipeline as an input, extracts the relevant metadata to an
 xml file.
