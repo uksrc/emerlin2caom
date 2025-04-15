@@ -465,7 +465,8 @@ class EmerlinMetadata:
                     if del_stat == 204:
                         print(obs_uri + " deleted.")
                     else:
-                        print(obs_uri + " attempted delete with status code " + del_stat)
+                        print(obs_uri + " attempted delete with status code:")
+                        print(del_stat)
                     create_stat = api.request_post(self, xml_output_name)
                     if create_stat == 201:
                         print(obs_uri + " ingested.")
@@ -478,6 +479,7 @@ class EmerlinMetadata:
                 if create_stat == 201:
                     print(obs_uri + " ingested.")
                 else:
-                    print(obs_uri + "attempted update with status code: " + create_stat)
+                    print(obs_uri + " attempted insert with status code:")
+                    print(create_stat)
 
 
