@@ -26,7 +26,7 @@ def request_delete(self, to_del):
     if res.status_code == 204:
         print(to_del + " has been deleted.")
     else:
-        print("Delete may have failed for " + to_del) # can remove once code no longer needs debugging
+        print(str(res.status_code) + ": Delete may have failed for " + to_del) # can remove once code no longer needs debugging
     return res.status_code
 
 def request_get(self, file_to_get=''):
