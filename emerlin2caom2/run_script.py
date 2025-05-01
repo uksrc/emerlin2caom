@@ -1,4 +1,5 @@
-import main_app
+from emerlin2caom2 import main_app
 
-a = main_app.EmerlinMetadata()
-a.build_metadata()
+def run_em_2_caom():
+    a = main_app.EmerlinMetadata()
+    a.build_metadata()

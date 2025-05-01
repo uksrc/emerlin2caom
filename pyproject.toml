@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "emerlin2caom2"
+version = "0.1.0"
+description = "A package to creat CAOM metadata from e-merlin data"
+authors = [
+	{name = "Michael Johnson"},
+	{name = "Erin Brassfield Bourke"}
+]
+license = "MIT"
+readme = "README.md"
+requires-python = ">3.8"
+dependencies = [
+	"astropy",
+	"casatools",
+	"checksumdir",
+	"caom2",
+	"pytest",
+	"pyvo"
+]
+
+[project.scripts]
+run-emerlin = "emerlin2caom2.run_script:run_em_2_caom"
+
+[project.urls]
+"Homepage" = "https://github.com/uksrc/emerlin2caom"
+
+[tool.setuptools]
+py-modules = ["emerlin2caom2"]
