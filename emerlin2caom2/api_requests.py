@@ -6,11 +6,9 @@ def request_post(self, xml_output_name):
     """
     Post (new) target XML data onto the database.
     Note this is flipped and was formerly 'put' in torkeep.
-    In recommended curl command, --data item has an @ before it. --data "@TS8004_C_001_20190801_De.xml"
     :param xml_output_name: ObservationID of xml file to post
     """
     post_file = xml_output_name
-    xml_output_name = "@" + xml_output_name
     url_post = self.base_url
     headers_post = {'Content-type': 'application/xml', 'accept': 'application/xml'}
     res = requests.post(url_post, data=open(post_file, 'rb'), verify=self.rootca, headers=headers_post)
@@ -28,21 +26,7 @@ def request_delete(self, to_del):
     if res.status_code == 204:
         print(to_del + " has been deleted.")
     else:
-        print(res.status_code + ": Delete may have failed for " + to_del) # can remove once code no longer needs debugging
-    return res.status_code
-
-def request_delete(self, to_del):
-    """
-    Deletes target XML data on the database.
-    :param to_del: ObservationID of target data to delete
-    """
-    url_del = self.base_url + '/' + to_del
-    # print(url_del) # can remove once code no longer needs debugging
-    res = requests.delete(url_del, verify=self.rootca)
-    if res.status_code == 204:
-        print(to_del + " has been deleted.")
-    else:
-        print(res.status_code + ": Delete may have failed for " + to_del) # can remove once code no longer needs debugging
+        print(str(res.status_code) + ": Delete may have failed for " + to_del) # can remove once code no longer needs debugging
     return res.status_code
 
 def request_get(self, file_to_get=''):
