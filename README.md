@@ -8,7 +8,7 @@ This has been created from the blank2caom2 template
 
 The codebase takes the output directory of the emerlin casa pipeline as an input, extracts the relevant metadata to an
 xml file.
-The inouts to the code are added via the settings_file.py file. These inputs are:
+The inputs to the code are added via the settings_file.py file. These inputs are:
 - storage_name: path to the target emerlin pipeline output (string)
 - xmldir: directory where the output xml file will be created
 - upload: True or False, if False the upload to local database will not be attempted. 
@@ -20,11 +20,59 @@ Only storage_name and xmldir are required for xml creation. rootca may be needed
 
 See the [archive-service GitHub](https://github.com/uksrc/archive-service) to fire up your local database instance! 
 
+## Installation and running
+
+### Step 1. Create and initialise a conda environment
+```
+conda create -n emerlin2caom python=3.7.6
+conda activate emerlin2caom
+```
+
+### Step 2. Install CADC requirements
+All of the requirements with releases on the PYPI hub will be installed when installing the emerlin2caom package.
+However, there are also three packages which require a separate installation method:
+
+[cadcutils](https://github.com/opencadc/cadctools/tree/main/cadcutils)
+[caom2tools](https://github.com/opencadc/caom2tools/tree/CAOM25)
+[casatools](https://pypi.org/project/casatools/)
+
+Download the github repositories [cadcutils](https://github.com/opencadc/cadctools/tree/main/cadcutils) and 
+[caom2tools](https://github.com/opencadc/caom2tools/tree/CAOM25), change directories to each of their respective download 
+locations and install via the following command.
+
+### Step 3. Install emerlin2caom2
+
+Change directory to the base emerlin2caom directory, e.g.:
+
+```commandline
+cd ~/emerlin2caom/
+```
+
+Install the emerlin2caom package and its other requirements.
+
+```
+pip install -e . 
+```
+
 Once the settings file is filled in, the code can be run using the run_script.py as follows:
 
 ```commandline
-python run_script.py
+run-emerlin
 ```
+
+This run command is invariant of its run location and the settings file can be updated without the need to reinstall the 
+package. 
+
+Whilst the archive service is not required for the creation of the XML documents, it is needed to build the database and upload the data to 
+the repository (itself). 
+For attempting upload, [Stephen's Quarkus API](https://github.com/uksrc/archive-services) should be built and running. 
+
+
+There is a simple test included in "test.py", the xml should be produced but the upload is expected to return a 403 
+permission denied with the current repository setup. 
+Change the input values within the file as necessary
+
+
 
 The expected output is a series of xml files which describes the metadata of the avg.ms, splits target .ms, plots (found in weblog/plot),
 and fits images (found in weblog/images). The main output is the derived observation which is named according to your 
@@ -41,39 +89,7 @@ Objects that are included within the emerlin output but not the metadata current
 - _avg.ms.flagversions measurement sets
 - all html files found within weblog, as well as logs and the emerlin gif
 
-## Installation and running
 
-Required packages are:
-
-[cadcutils](https://github.com/opencadc/cadctools/tree/main/cadcutils)
-[caom2tools](https://github.com/opencadc/caom2tools/tree/CAOM25)
-[casatools](https://pypi.org/project/casatools/)
-[checksumdir](https://pypi.org/project/checksumdir/)
-
-Creating a conda environment to test the commands
-```
-conda create -n emerlin2caom python=3.7.6
-conda activate emerlin2caom
-pip install astropy=4.5.1
-pip install casatools
-pip install checksumdir
-pip install caom2 --ignore-requires-python
-pip install pytest
-```
-Download the github repositories [cadcutils](https://github.com/opencadc/cadctools/tree/main/cadcutils) and 
-[caom2tools](https://github.com/opencadc/caom2tools/tree/CAOM25), change directories to each of their respective download 
-locations and install via the following command.
-```
-pip install . --ignore-requires-python
-```
-
-Whilst the archive service is not required for the creation of the XML documents, it is needed to build the database and upload the data to 
-the repository (itself). 
-For attempting upload, [Stephen's Quarkus API](https://github.com/uksrc/archive-services) should be built and running. 
-
-There is a simple test included in "test.py", the xml should be produced but the upload is expected to return a 403 
-permission denied with the current repository setup. 
-Change the input values within the file as necessary
 
 ## Alternative installation of  CASA
 
