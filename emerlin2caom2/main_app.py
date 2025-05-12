@@ -12,11 +12,11 @@ from caom2 import SimpleObservation, ObservationIntentType, Target, Telescope, T
 from pkg_resources import Environment
 from setuptools.config.expand import canonic_data_files
 
-import casa_reader as casa
-import file_metadata as msmd
-import fits_reader as fr
-import settings_file as set_f
-import api_requests as api
+from emerlin2caom2 import casa_reader as casa
+from emerlin2caom2 import file_metadata as msmd
+from emerlin2caom2 import fits_reader as fr
+from emerlin2caom2 import settings_file as set_f
+from emerlin2caom2 import api_requests as api
 
 __all__ = [
     'EmerlinMetadata',
