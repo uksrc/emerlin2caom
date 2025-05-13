@@ -24,7 +24,7 @@ See the [archive-service GitHub](https://github.com/uksrc/archive-service) to fi
 
 ### Step 1. Create and initialise a conda environment
 ```
-conda create -n emerlin2caom python=3.7.6
+conda create -n emerlin2caom python
 conda activate emerlin2caom
 ```
 
