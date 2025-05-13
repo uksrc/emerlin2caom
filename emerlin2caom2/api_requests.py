@@ -11,7 +11,7 @@ def request_post(self, xml_output_name):
     post_file = xml_output_name
     url_post = self.base_url
     headers_post = {'Content-type': 'application/xml', 'accept': 'application/xml'}
-    res = requests.post(url_post, data=open(post_file, 'rb'), verify=self.rootca, headers=headers_post)
+    res = requests.post(url_post, data=open(post_file, 'rb'), headers=headers_post)
     # print(res.status_code) # can remove once code no longer needs debugging
     return res.status_code
 
@@ -22,7 +22,7 @@ def request_delete(self, to_del):
     """
     url_del = self.base_url + '/' + to_del
     # print(url_del) # can remove once code no longer needs debugging
-    res = requests.delete(url_del, verify=self.rootca)
+    res = requests.delete(url_del)
     if res.status_code == 204:
         print(to_del + " has been deleted.")
     else:
@@ -38,7 +38,7 @@ def request_get(self, file_to_get=''):
     #url_get = self.base_url + '/' + file_to_get
     url_get = self.base_url
     print(url_get) # can remove once code no longer needs debugging
-    res = requests.get(url_get, params=payload, verify=self.rootca)
+    res = requests.get(url_get, params=payload)
     print(res) # can remove once code no longer needs debugging
 
 
@@ -76,7 +76,7 @@ def request_tap(self, obs_id):
 
     if url_tap:
         print('location: ' + url_tap)
-        res = requests.get(url_tap, verify=self.rootca)
+        res = requests.get(url_tap)
         print(res)
         print(res.text)
         print(res.text[1][0])
