@@ -102,10 +102,6 @@ class EmerlinMetadata:
         xml_out_dir += '/'
 
     base_url = set_f.base_url
-    #base_url = 'http://localhost:8080/observations/'
-    #base_url = 'https://src-data-repo.co.uk/torkeep/observations/EMERLIN'
-    # rootca = set_f.rootca
-    #ska_token = set_f.ska_token
     obs_id = basename(storage_name)
     ms_dir_main = storage_name + '/{}_avg.ms'.format(obs_id)  # maybe flimsy? depends on the rigidity of the em pipeline
     ms_dir_spectral = storage_name + '/{}_sp.ms'.format(obs_id)
